@@ -10,7 +10,8 @@
     "ci:lint": "npx @biomejs/biome ci .",
     "lint": "npx @biomejs/biome check .",
     "lint:write": "npx @biomejs/biome check --write .",
-    "format": "npx @biomejs/biome format --write ."
+    "format": "npx @biomejs/biome format --write .",
+    "test": "exit 0"
   },
   "exports": {
     ".": "./dist/voidstone.es.js"
