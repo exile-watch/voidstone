@@ -10,15 +10,13 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "ci:typecheck": "exit 0",
-    "ci:lint": "exit 0",
-    "lint": "npx @biomejs/biome check .",
-    "lint:write": "npx @biomejs/biome check --write .",
-    "format": "npx @biomejs/biome format --write .",
+    "ci:lint": "npx @biomejs/biome ci . --config-path=biome.json",
+    "lint": "npx @biomejs/biome check . --config-path=biome.json",
+    "lint:write": "npx @biomejs/biome check --write . --config-path=biome.json",
+    "format": "npx @biomejs/biome format --write . --config-path=biome.json",
     "test": "exit 0"
   },
-  "files": [
-    "dist"
-  ],
+  "files": ["dist"],
   "bin": {
     "voidstone": "dist/voidstone.es.js"
   },
