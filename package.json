@@ -14,9 +14,7 @@
   "exports": {
     ".": "./dist/voidstone.es.js"
   },
-  "files": [
-    "dist"
-  ],
+  "files": ["dist"],
   "bin": {
     "voidstone": "dist/voidstone.es.js"
   },
