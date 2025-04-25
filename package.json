@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "ci:lint": "npx @biomejs/biome ci .",
     "lint": "npx @biomejs/biome check .",
     "lint:write": "npx @biomejs/biome check --write .",
     "format": "npx @biomejs/biome format --write ."
