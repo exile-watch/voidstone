@@ -2,9 +2,6 @@ name: "Publish package: @exile-watch / doryani"
 
 on:
   push:
-    paths:
-      - 'packages/**'
-      - '!packages/**/*.md'
     branches:
       - main
   workflow_dispatch:
