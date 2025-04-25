@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "target": "esnext",
+    "module": "NodeNext",
+    "declaration": true,
+    "declarationMap": true,
+    "composite": true,
+    "outDir": "dist",
+    "rootDir": "src",
+    "strict": true,
+    "moduleResolution": "nodenext",
+    "skipLibCheck": true,
+    "jsx": "preserve",
+    "allowSyntheticDefaultImports": true,
+    "types": ["node"]
+  },
+  "include": ["src"]
+}

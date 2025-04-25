@@ -1,0 +1,38 @@
+{
+  "name": "voidstone",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "lint": "npx @biomejs/biome check .",
+    "lint:write": "npx @biomejs/biome check --write .",
+    "format": "npx @biomejs/biome format --write ."
+  },
+  "exports": {
+    ".": "./dist/voidstone.es.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "bin": {
+    "voidstone": "dist/voidstone.es.js"
+  },
+  "dependencies": {
+    "@octokit/rest": "^21.1.1",
+    "conventional-changelog": "^6.0.0",
+    "conventional-recommended-bump": "^11.0.0",
+    "fast-glob": "^3.3.3",
+    "get-stream": "^9.0.1",
+    "semver": "^7.7.1"
+  },
+  "devDependencies": {
+    "@exile-watch/biome-config": "^1.1.4",
+    "@types/conventional-changelog": "^6.0.0",
+    "@types/node": "^22.15.2",
+    "semantic-release": "^24.2.3",
+    "typescript": "~5.7.2",
+    "vite": "^6.3.1"
+  }
+}
