@@ -32,7 +32,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - id: publish-package-step
-        uses: npx semantic-release
+        shell: bash
+        run: npx semantic-release
         with:
           GH_ACTOR: ${{ github.actor }}
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
