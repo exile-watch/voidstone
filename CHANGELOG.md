@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.8](https://github.com/exile-watch/voidstone/compare/v1.0.7...v1.0.8) (2025-04-26)
+
+
+### Bug Fixes
+
+* streamline npm registry configuration and improve error handling for GH_TOKEN ([f7e7274](https://github.com/exile-watch/voidstone/commit/f7e72741b77b0f5690f5604fadf6185905c33f8f))
+
 ## [1.0.7](https://github.com/exile-watch/voidstone/compare/v1.0.6...v1.0.7) (2025-04-26)
 
 
