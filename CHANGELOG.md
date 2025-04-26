@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.4](https://github.com/exile-watch/voidstone/compare/v1.0.3...v1.0.4) (2025-04-26)
+
+
+### Bug Fixes
+
+* sync lock ([2af73d4](https://github.com/exile-watch/voidstone/commit/2af73d4fa613289c7b0998e6d8b46b4d0c1ccdb6))
+* update authentication parameters in publish-package.yml ([230cf2a](https://github.com/exile-watch/voidstone/commit/230cf2a6a20b10adaf8bfddc4c01cbd3db250cbc))
+
 ## [1.0.3](https://github.com/exile-watch/voidstone/compare/v1.0.2...v1.0.3) (2025-04-26)
 
 
