@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.10](https://github.com/exile-watch/voidstone/compare/v1.0.9...v1.0.10) (2025-04-26)
+
+
+### Bug Fixes
+
+* improve error handling by specifying error type in catch block ([7a55429](https://github.com/exile-watch/voidstone/commit/7a5542952f62cb04ccffec7d11678f6d55fdada8))
+
 ## [1.0.9](https://github.com/exile-watch/voidstone/compare/v1.0.8...v1.0.9) (2025-04-26)
 
 
