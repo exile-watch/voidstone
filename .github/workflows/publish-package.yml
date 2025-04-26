@@ -14,17 +14,7 @@ permissions:
   issues: write
 
 jobs:
-  auth-github-registry:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Authenticate to GitHub Registry
-        uses: exile-watch/doryani/auth-github-registry@main
-        with:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
-          GH_ACTOR: ${{ github.actor }}
-
   publish-package:
-    needs: [auth-github-registry]
     name: Publish to NPM
     runs-on: ubuntu-latest
     steps:
@@ -33,14 +23,13 @@ jobs:
         with:
           release-type: node
 
-      - uses: actions/checkout@v4
-        if: ${{ steps.release.outputs.release_created }}
-      - uses: actions/setup-node@v4
+      - name: Authenticate to GitHub Registry
+        uses: exile-watch/doryani/auth-github-registry@main
         with:
-          node-version: '20.x'
-          registry-url: 'https://npm.pkg.github.com'
-          scope: '@exile-watch'
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          GH_ACTOR: ${{ github.actor }}
         if: ${{ steps.release.outputs.release_created }}
+
       - run: npm ci
         env:
           NODE_AUTH_TOKEN: ${{secrets.NPM_TOKEN}}
