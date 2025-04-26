@@ -110,7 +110,7 @@ async function main() {
   let rootDir: string;
   try {
     rootDir = findRepoRoot();
-  } catch (e) {
+  } catch (e: any) {
     console.error(`❌ ${e.message}`);
     process.exit(1);
   }
