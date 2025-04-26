@@ -20,8 +20,8 @@ jobs:
       - name: Authenticate to GitHub Registry
         uses: exile-watch/doryani/auth-github-registry@main
         with:
-          GH_TOKEN: ${{ inputs.GH_TOKEN }}
-          GH_ACTOR: ${{ inputs.GH_ACTOR }}
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          GH_ACTOR: ${{ github.actor }}
 
   publish-package:
     needs: [auth-github-registry]
