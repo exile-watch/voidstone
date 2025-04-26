@@ -37,21 +37,25 @@ function findRepoRoot(): string {
 }
 
 /**
- * Read workspaces from root package.json
+ * Read workspaces from root package.json, or default to root package
  */
 function getWorkspacePackagePaths(rootDir: string): string[] {
-  const rootPkg = JSON.parse(
-    fs.readFileSync(path.join(rootDir, "package.json"), "utf-8"),
-  );
-  const patterns: string[] = Array.isArray(rootPkg.workspaces)
-    ? rootPkg.workspaces
-    : [];
-  return fg.sync(
+  const rootPkgPath = path.join(rootDir, "package.json");
+  const rootPkg = JSON.parse(fs.readFileSync(rootPkgPath, "utf-8"));
+  const patterns: string[] =
+    Array.isArray(rootPkg.workspaces) && rootPkg.workspaces.length > 0
+      ? rootPkg.workspaces
+      : [];
+  const pkgPaths = fg.sync(
     patterns.map((p) => path.join(rootDir, p, "package.json")),
     { dot: true },
   );
+  return pkgPaths.length > 0 ? pkgPaths : [rootPkgPath];
 }
 
+/**
+ * Compute next version bump for a package via conventional commits
+ */
 async function computePackageBump(
   pkgPath: string,
 ): Promise<ReleaseInfo | null> {
@@ -62,13 +66,15 @@ async function computePackageBump(
   const bumper = new Bumper(path.dirname(pkgPath));
   bumper.loadPreset("angular");
   const { releaseType } = await bumper.bump();
-  const bumpType = releaseType as "major" | "minor" | "patch";
-  const next = semver.inc(current, bumpType);
+  const next = semver.inc(current, releaseType as "major" | "minor" | "patch");
   if (!next || next === current) return null;
   return { name, current, next, pkgDir: path.dirname(pkgPath) };
 }
 
-function rollback() {
+/**
+ * Rollback any partial release actions
+ */
+function rollback(): void {
   console.warn("Rolling back releases...");
   releases.forEach((info) => {
     const tag = `${info.name}@v${info.next}`;
@@ -80,8 +86,10 @@ function rollback() {
       execSync("git reset --hard HEAD~1");
     } catch {}
     try {
-      const unpubCmd = `npm unpublish ${info.name}@${info.next} --registry ${REGISTRY}`;
-      execSync(unpubCmd, { stdio: "ignore", cwd: info.pkgDir });
+      execSync(
+        `npm unpublish ${info.name}@${info.next} --registry ${REGISTRY}`,
+        { stdio: "ignore", cwd: info.pkgDir },
+      );
     } catch {}
     try {
       const id = releaseIds[info.name];
@@ -99,14 +107,17 @@ function rollback() {
   console.warn("Rollback complete.");
 }
 
-async function main() {
-  // Ensure required token is present
+/**
+ * Main release flow
+ */
+async function main(): Promise<void> {
+  // Ensure GH_TOKEN is available
   if (!process.env.GH_TOKEN) {
     console.error("❌ GH_TOKEN environment variable is required for releasing");
     process.exit(1);
   }
 
-  // Determine repo root and workspace package.json paths
+  // Locate repo root and packages
   let rootDir: string;
   try {
     rootDir = findRepoRoot();
@@ -115,7 +126,9 @@ async function main() {
     process.exit(1);
   }
   const pkgPaths = getWorkspacePackagePaths(rootDir);
-  const bumps = await Promise.all(pkgPaths.map((p) => computePackageBump(p)));
+
+  // Compute bumps
+  const bumps = await Promise.all(pkgPaths.map(computePackageBump));
   const toRelease = bumps.filter((b): b is ReleaseInfo => Boolean(b));
 
   if (toRelease.length === 0) {
@@ -123,40 +136,37 @@ async function main() {
     return;
   }
 
-  // Preflight dry-run for each package
+  // Dry-run publish
   toRelease.forEach(({ pkgDir }) => {
-    const cmd = `npm publish --dry-run --registry ${REGISTRY}`;
-    execSync(cmd, { cwd: pkgDir, stdio: "ignore" });
+    execSync(`npm publish --dry-run --registry ${REGISTRY}`, {
+      cwd: pkgDir,
+      stdio: "ignore",
+    });
   });
 
-  // Configure Git for actions
+  // Configure Git user for tagging
   execSync('git config user.name "github-actions[bot]"');
   execSync(
     'git config user.email "github-actions[bot]@users.noreply.github.com"',
   );
 
+  // Process each package
   for (const info of toRelease) {
     const { name, current, next, pkgDir } = info;
     console.log(`🔢 Releasing ${name}: ${current} → ${next}`);
 
-    // Update version
+    // 1. Bump version in package.json
     const pkgJsonPath = path.join(pkgDir, "package.json");
-    const pkg = JSON.parse(fs.readFileSync(pkgJsonPath, "utf-8")) as {
-      [key: string]: any;
-    };
+    const pkg = JSON.parse(fs.readFileSync(pkgJsonPath, "utf-8"));
     pkg.version = next;
     fs.writeFileSync(pkgJsonPath, `${JSON.stringify(pkg, null, 2)}\n`);
 
-    // Update inter-package deps
-    const otherPkgPaths = toRelease.map((r) =>
-      path.join(r.pkgDir, "package.json"),
-    );
-    otherPkgPaths
+    // 2. Update inter-package dependencies
+    toRelease
+      .map((r) => path.join(r.pkgDir, "package.json"))
       .filter((p) => p !== pkgJsonPath)
       .forEach((otherPath) => {
-        const otherPkg = JSON.parse(fs.readFileSync(otherPath, "utf-8")) as {
-          [key: string]: any;
-        };
+        const otherPkg = JSON.parse(fs.readFileSync(otherPath, "utf-8"));
         let updated = false;
         (
           [
@@ -165,9 +175,9 @@ async function main() {
             "peerDependencies",
             "optionalDependencies",
           ] as const
-        ).forEach((field) => {
-          if (otherPkg[field]?.[name]) {
-            otherPkg[field][name] = `^${next}`;
+        ).forEach((f) => {
+          if (otherPkg[f]?.[name]) {
+            otherPkg[f][name] = `^${next}`;
             updated = true;
           }
         });
@@ -175,23 +185,18 @@ async function main() {
           fs.writeFileSync(otherPath, `${JSON.stringify(otherPkg, null, 2)}\n`);
       });
 
-    // Generate changelog
-    const logStream = changelog({
-      preset: "angular",
-      tagPrefix: `${name}@`,
-      releaseCount: 0,
-    });
-    const log = await getStream(logStream);
+    // 3. Generate CHANGELOG.md
+    const log = await getStream(
+      changelog({ preset: "angular", tagPrefix: `${name}@`, releaseCount: 0 }),
+    );
     const changelogPath = path.join(pkgDir, "CHANGELOG.md");
     fs.writeFileSync(changelogPath, log);
 
-    // Commit & tag
-    const filesToAdd = [
-      path.relative(rootDir, pkgJsonPath),
-      path.relative(rootDir, changelogPath),
-      ...otherPkgPaths.map((p) => path.relative(rootDir, p)),
-    ].join(" ");
-    execSync(`git add ${filesToAdd}`);
+    // 4. Commit, tag, and push
+    const relFiles = [pkgJsonPath, changelogPath]
+      .concat(toRelease.map((r) => path.join(r.pkgDir, "package.json")))
+      .map((p) => path.relative(rootDir, p));
+    execSync(`git add ${relFiles.join(" ")}`);
     execSync(
       `git commit -m \"chore(${name}): release v${next} and update deps\"`,
     );
@@ -199,11 +204,13 @@ async function main() {
     execSync(`git tag -a ${tagName} -m \"${name} v${next}\"`);
     execSync("git push --follow-tags", { stdio: "inherit" });
 
-    // Publish to GitHub Packages
-    const pubCmd = `npm publish --registry ${REGISTRY}`;
-    execSync(pubCmd, { cwd: pkgDir, stdio: "inherit" });
+    // 5. Publish to GitHub Packages
+    execSync(`npm publish --registry ${REGISTRY}`, {
+      cwd: pkgDir,
+      stdio: "inherit",
+    });
 
-    // Create GitHub release
+    // 6. Create GitHub release
     const [owner = "", repo = ""] =
       process.env.GITHUB_REPOSITORY?.split("/") ?? [];
     const octokit = new Octokit({ auth: process.env.GH_TOKEN });
