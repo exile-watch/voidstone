@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.7](https://github.com/exile-watch/voidstone/compare/v1.0.6...v1.0.7) (2025-04-26)
+
+
+### Bug Fixes
+
+* add build step before npm publish in publish-package.yml ([459d1b5](https://github.com/exile-watch/voidstone/commit/459d1b500ae5b04cf6edbe68403ecf401b795480))
+
 ## [1.0.6](https://github.com/exile-watch/voidstone/compare/v1.0.5...v1.0.6) (2025-04-26)
 
 
