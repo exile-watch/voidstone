@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.3](https://github.com/exile-watch/voidstone/compare/v1.0.2...v1.0.3) (2025-04-26)
+
+
+### Bug Fixes
+
+* remove checkout step from publish-package.yml ([6d38ac9](https://github.com/exile-watch/voidstone/commit/6d38ac9093e7812504ae84f558fb2e1bed8d9ac0))
+
 ## [1.0.2](https://github.com/exile-watch/voidstone/compare/v1.0.1...v1.0.2) (2025-04-26)
 
 
