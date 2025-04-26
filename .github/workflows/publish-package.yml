@@ -42,6 +42,8 @@ jobs:
           scope: '@exile-watch'
         if: ${{ steps.release.outputs.release_created }}
       - run: npm ci
+        env:
+          NODE_AUTH_TOKEN: ${{secrets.NPM_TOKEN}}
         if: ${{ steps.release.outputs.release_created }}
       - run: npm publish
         env:
