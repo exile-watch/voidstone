@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.6](https://github.com/exile-watch/voidstone/compare/v1.0.5...v1.0.6) (2025-04-26)
+
+
+### Bug Fixes
+
+* streamline authentication steps in publish-package.yml ([022d374](https://github.com/exile-watch/voidstone/commit/022d374267c3deebe392c6ea8f6a9159ff87371f))
+
 ## [1.0.5](https://github.com/exile-watch/voidstone/compare/v1.0.4...v1.0.5) (2025-04-26)
 
 
