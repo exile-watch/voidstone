@@ -17,7 +17,6 @@ interface ReleaseInfo {
   pkgDir: string;
 }
 const releases: ReleaseInfo[] = [];
-const registryUrl = "https://npm.pkg.github.com/";
 const releaseIds: Record<string, number> = {};
 
 function setupNpmrc() {
