@@ -18,18 +18,7 @@ interface ReleaseInfo {
 }
 const releases: ReleaseInfo[] = [];
 const releaseIds: Record<string, number> = {};
-
-function setupNpmrc() {
-  const token = process.env.GH_TOKEN;
-  if (!token)
-    throw new Error(
-      "GH_TOKEN is required for publishing to npm.pkg.github.com",
-    );
-
-  const content = `//npm.pkg.github.com/:_authToken=${token}\n
-    @exile-watch:registry=https://npm.pkg.github.com/\n`;
-  fs.writeFileSync(path.join(process.cwd(), ".npmrc"), content);
-}
+const REGISTRY = "https://npm.pkg.github.com/";
 
 function getWorkspacePackagePaths(): string[] {
   const rootPkg = JSON.parse(fs.readFileSync("package.json", "utf-8"));
@@ -68,14 +57,14 @@ function rollback() {
       execSync("git reset --hard HEAD~1");
     } catch {}
     try {
-      const unpubCmd = `npm unpublish ${info.name}@${info.next} --registry https://npm.pkg.github.com/`;
+      const unpubCmd = `npm unpublish ${info.name}@${info.next} --registry ${REGISTRY}`;
       execSync(unpubCmd, { stdio: "ignore", cwd: info.pkgDir });
     } catch {}
     try {
       const id = releaseIds[info.name];
       if (id) {
         const [owner = "", repo = ""] =
-          process.env.GH_REPOSITORY?.split("/") ?? [];
+          process.env.GITHUB_REPOSITORY?.split("/") ?? [];
         new Octokit({ auth: process.env.GH_TOKEN }).repos.deleteRelease({
           owner,
           repo,
@@ -88,10 +77,13 @@ function rollback() {
 }
 
 async function main() {
-  try {
-    // Setup npm auth for GitHub Packages
-    setupNpmrc();
+  // Ensure required token is present
+  if (!process.env.GH_TOKEN) {
+    console.error("❌ GH_TOKEN environment variable is required for releasing");
+    process.exit(1);
+  }
 
+  try {
     const pkgPaths = getWorkspacePackagePaths();
     const bumps = await Promise.all(pkgPaths.map((p) => computePackageBump(p)));
     const toRelease = bumps.filter((b): b is ReleaseInfo => Boolean(b));
@@ -103,8 +95,7 @@ async function main() {
 
     // Preflight dry-run for each package
     toRelease.forEach(({ pkgDir }) => {
-      const cmd =
-        "npm publish --dry-run --registry https://npm.pkg.github.com/";
+      const cmd = `npm publish --dry-run --registry ${REGISTRY}`;
       execSync(cmd, { cwd: pkgDir, stdio: "ignore" });
     });
 
@@ -173,12 +164,12 @@ async function main() {
       execSync("git push --follow-tags", { stdio: "inherit" });
 
       // Publish to GitHub Packages
-      const pubCmd = "npm publish --registry https://npm.pkg.github.com/";
+      const pubCmd = `npm publish --registry ${REGISTRY}`;
       execSync(pubCmd, { cwd: pkgDir, stdio: "inherit" });
 
       // Create GitHub release
       const [owner = "", repo = ""] =
-        process.env.GH_REPOSITORY?.split("/") ?? [];
+        process.env.GITHUB_REPOSITORY?.split("/") ?? [];
       const octokit = new Octokit({ auth: process.env.GH_TOKEN });
       const release = await octokit.repos.createRelease({
         owner,
