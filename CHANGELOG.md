@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.5](https://github.com/exile-watch/voidstone/compare/v1.0.4...v1.0.5) (2025-04-26)
+
+
+### Bug Fixes
+
+* add NODE_AUTH_TOKEN environment variable for npm publish step in publish-package.yml ([9abdfe9](https://github.com/exile-watch/voidstone/commit/9abdfe9b197247bbd19c71a251b30a433c62b4fc))
+
 ## [1.0.4](https://github.com/exile-watch/voidstone/compare/v1.0.3...v1.0.4) (2025-04-26)
 
 
