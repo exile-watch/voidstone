@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.11](https://github.com/exile-watch/voidstone/compare/v1.0.10...v1.0.11) (2025-04-26)
+
+
+### Bug Fixes
+
+* enhance workspace package path resolution and improve release process ([ec2fc95](https://github.com/exile-watch/voidstone/commit/ec2fc95f7acf77a1704085d625f253943b1c7e4b))
+
 ## [1.0.10](https://github.com/exile-watch/voidstone/compare/v1.0.9...v1.0.10) (2025-04-26)
 
 
