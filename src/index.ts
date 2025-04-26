@@ -17,17 +17,19 @@ interface ReleaseInfo {
   pkgDir: string;
 }
 const releases: ReleaseInfo[] = [];
-let registryUrl: string | undefined;
+const registryUrl = "https://npm.pkg.github.com/";
 const releaseIds: Record<string, number> = {};
 
-function setupNpmrc(registry: string, tokenKey: string) {
-  const token = process.env[tokenKey];
+function setupNpmrc() {
+  const token = process.env.GH_TOKEN;
   if (!token)
-    throw new Error(`${tokenKey} is required for registry ${registry}`);
-  const host = registry.replace(/^https?:\/\//, "");
-  const content = `//${host}/:_authToken=${token}\nregistry=${registry}\n`;
+    throw new Error(
+      "GH_TOKEN is required for publishing to npm.pkg.github.com",
+    );
+
+  const content = `//npm.pkg.github.com/:_authToken=${token}\n
+    @exile-watch:registry=https://npm.pkg.github.com/\n`;
   fs.writeFileSync(path.join(process.cwd(), ".npmrc"), content);
-  registryUrl = registry;
 }
 
 function getWorkspacePackagePaths(): string[] {
@@ -67,19 +69,15 @@ function rollback() {
       execSync("git reset --hard HEAD~1");
     } catch {}
     try {
-      const unpubCmd = registryUrl
-        ? `npm unpublish ${info.name}@${info.next} --registry ${registryUrl}`
-        : `npm unpublish ${info.name}@${info.next}`;
+      const unpubCmd = `npm unpublish ${info.name}@${info.next} --registry https://npm.pkg.github.com/`;
       execSync(unpubCmd, { stdio: "ignore", cwd: info.pkgDir });
     } catch {}
     try {
       const id = releaseIds[info.name];
       if (id) {
         const [owner = "", repo = ""] =
-          process.env.GITHUB_REPOSITORY?.split("/") ?? [];
-        new Octokit({
-          auth: process.env.GITHUB_TOKEN ?? "",
-        }).repos.deleteRelease({
+          process.env.GH_REPOSITORY?.split("/") ?? [];
+        new Octokit({ auth: process.env.GH_TOKEN }).repos.deleteRelease({
           owner,
           repo,
           release_id: id,
@@ -92,9 +90,8 @@ function rollback() {
 
 async function main() {
   try {
-    const customReg = process.env.CUSTOM_REGISTRY;
-    const customTokenKey = process.env.CUSTOM_REGISTRY_TOKEN;
-    if (customReg && customTokenKey) setupNpmrc(customReg, customTokenKey);
+    // Setup npm auth for GitHub Packages
+    setupNpmrc();
 
     const pkgPaths = getWorkspacePackagePaths();
     const bumps = await Promise.all(pkgPaths.map((p) => computePackageBump(p)));
@@ -105,15 +102,14 @@ async function main() {
       return;
     }
 
-    // Preflight dry-run
+    // Preflight dry-run for each package
     toRelease.forEach(({ pkgDir }) => {
-      const cmd = registryUrl
-        ? `npm publish --dry-run --registry ${registryUrl}`
-        : "npm publish --dry-run";
+      const cmd =
+        "npm publish --dry-run --registry https://npm.pkg.github.com/";
       execSync(cmd, { cwd: pkgDir, stdio: "ignore" });
     });
 
-    // Configure git for Actions bot
+    // Configure Git for actions
     execSync('git config user.name "github-actions[bot]"');
     execSync(
       'git config user.email "github-actions[bot]@users.noreply.github.com"',
@@ -177,18 +173,15 @@ async function main() {
       execSync(`git tag -a ${tagName} -m \"${name} v${next}\"`);
       execSync("git push --follow-tags", { stdio: "inherit" });
 
-      // Publish to npm/GPR
-      const pubCmd = registryUrl
-        ? `npm publish --registry ${registryUrl}`
-        : "npm publish";
+      // Publish to GitHub Packages
+      const pubCmd = "npm publish --registry https://npm.pkg.github.com/";
       execSync(pubCmd, { cwd: pkgDir, stdio: "inherit" });
 
-      // GitHub release
+      // Create GitHub release
       const [owner = "", repo = ""] =
-        process.env.GITHUB_REPOSITORY?.split("/") ?? [];
-      const release = await new Octokit({
-        auth: process.env.GITHUB_TOKEN ?? "",
-      }).repos.createRelease({
+        process.env.GH_REPOSITORY?.split("/") ?? [];
+      const octokit = new Octokit({ auth: process.env.GH_TOKEN });
+      const release = await octokit.repos.createRelease({
         owner,
         repo,
         tag_name: tagName,
