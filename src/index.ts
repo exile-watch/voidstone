@@ -20,11 +20,34 @@ const releases: ReleaseInfo[] = [];
 const releaseIds: Record<string, number> = {};
 const REGISTRY = "https://npm.pkg.github.com/";
 
-function getWorkspacePackagePaths(): string[] {
-  const rootPkg = JSON.parse(fs.readFileSync("package.json", "utf-8"));
-  const patterns = Array.isArray(rootPkg.workspaces) ? rootPkg.workspaces : [];
+/**
+ * Ascend from cwd to locate repository root (contains package.json)
+ */
+function findRepoRoot(): string {
+  let dir = process.cwd();
+  while (true) {
+    if (fs.existsSync(path.join(dir, "package.json"))) {
+      return dir;
+    }
+    const parent = path.dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  throw new Error("Could not find package.json in any parent directory");
+}
+
+/**
+ * Read workspaces from root package.json
+ */
+function getWorkspacePackagePaths(rootDir: string): string[] {
+  const rootPkg = JSON.parse(
+    fs.readFileSync(path.join(rootDir, "package.json"), "utf-8"),
+  );
+  const patterns: string[] = Array.isArray(rootPkg.workspaces)
+    ? rootPkg.workspaces
+    : [];
   return fg.sync(
-    patterns.map((p: string) => path.posix.join(p, "package.json")),
+    patterns.map((p) => path.join(rootDir, p, "package.json")),
     { dot: true },
   );
 }
@@ -83,43 +106,54 @@ async function main() {
     process.exit(1);
   }
 
+  // Determine repo root and workspace package.json paths
+  let rootDir: string;
   try {
-    const pkgPaths = getWorkspacePackagePaths();
-    const bumps = await Promise.all(pkgPaths.map((p) => computePackageBump(p)));
-    const toRelease = bumps.filter((b): b is ReleaseInfo => Boolean(b));
+    rootDir = findRepoRoot();
+  } catch (e) {
+    console.error(`❌ ${e.message}`);
+    process.exit(1);
+  }
+  const pkgPaths = getWorkspacePackagePaths(rootDir);
+  const bumps = await Promise.all(pkgPaths.map((p) => computePackageBump(p)));
+  const toRelease = bumps.filter((b): b is ReleaseInfo => Boolean(b));
 
-    if (toRelease.length === 0) {
-      console.log("📦 No package changes detected. Nothing to release.");
-      return;
-    }
+  if (toRelease.length === 0) {
+    console.log("📦 No package changes detected. Nothing to release.");
+    return;
+  }
 
-    // Preflight dry-run for each package
-    toRelease.forEach(({ pkgDir }) => {
-      const cmd = `npm publish --dry-run --registry ${REGISTRY}`;
-      execSync(cmd, { cwd: pkgDir, stdio: "ignore" });
-    });
+  // Preflight dry-run for each package
+  toRelease.forEach(({ pkgDir }) => {
+    const cmd = `npm publish --dry-run --registry ${REGISTRY}`;
+    execSync(cmd, { cwd: pkgDir, stdio: "ignore" });
+  });
 
-    // Configure Git for actions
-    execSync('git config user.name "github-actions[bot]"');
-    execSync(
-      'git config user.email "github-actions[bot]@users.noreply.github.com"',
+  // Configure Git for actions
+  execSync('git config user.name "github-actions[bot]"');
+  execSync(
+    'git config user.email "github-actions[bot]@users.noreply.github.com"',
+  );
+
+  for (const info of toRelease) {
+    const { name, current, next, pkgDir } = info;
+    console.log(`🔢 Releasing ${name}: ${current} → ${next}`);
+
+    // Update version
+    const pkgJsonPath = path.join(pkgDir, "package.json");
+    const pkg = JSON.parse(fs.readFileSync(pkgJsonPath, "utf-8")) as {
+      [key: string]: any;
+    };
+    pkg.version = next;
+    fs.writeFileSync(pkgJsonPath, `${JSON.stringify(pkg, null, 2)}\n`);
+
+    // Update inter-package deps
+    const otherPkgPaths = toRelease.map((r) =>
+      path.join(r.pkgDir, "package.json"),
     );
-
-    for (const info of toRelease) {
-      const { name, current, next, pkgDir } = info;
-      console.log(`🔢 Releasing ${name}: ${current} → ${next}`);
-
-      // Update version
-      const pkgJsonPath = path.join(pkgDir, "package.json");
-      const pkg = JSON.parse(fs.readFileSync(pkgJsonPath, "utf-8")) as {
-        [key: string]: any;
-      };
-      pkg.version = next;
-      fs.writeFileSync(pkgJsonPath, `${JSON.stringify(pkg, null, 2)}\n`);
-
-      // Update inter-package deps
-      const otherPkgPaths = pkgPaths.filter((p) => path.dirname(p) !== pkgDir);
-      otherPkgPaths.forEach((otherPath) => {
+    otherPkgPaths
+      .filter((p) => p !== pkgJsonPath)
+      .forEach((otherPath) => {
         const otherPkg = JSON.parse(fs.readFileSync(otherPath, "utf-8")) as {
           [key: string]: any;
         };
@@ -141,53 +175,50 @@ async function main() {
           fs.writeFileSync(otherPath, `${JSON.stringify(otherPkg, null, 2)}\n`);
       });
 
-      // Generate changelog
-      const logStream = changelog({
-        preset: "angular",
-        tagPrefix: `${name}@`,
-        releaseCount: 0,
-      });
-      const log = await getStream(logStream);
-      const changelogPath = path.join(pkgDir, "CHANGELOG.md");
-      fs.writeFileSync(changelogPath, log);
+    // Generate changelog
+    const logStream = changelog({
+      preset: "angular",
+      tagPrefix: `${name}@`,
+      releaseCount: 0,
+    });
+    const log = await getStream(logStream);
+    const changelogPath = path.join(pkgDir, "CHANGELOG.md");
+    fs.writeFileSync(changelogPath, log);
 
-      // Commit & tag
-      const filesToAdd = [pkgJsonPath, changelogPath, ...otherPkgPaths].join(
-        " ",
-      );
-      execSync(`git add ${filesToAdd}`);
-      execSync(
-        `git commit -m \"chore(${name}): release v${next} and update deps\"`,
-      );
-      const tagName = `${name}@v${next}`;
-      execSync(`git tag -a ${tagName} -m \"${name} v${next}\"`);
-      execSync("git push --follow-tags", { stdio: "inherit" });
+    // Commit & tag
+    const filesToAdd = [
+      path.relative(rootDir, pkgJsonPath),
+      path.relative(rootDir, changelogPath),
+      ...otherPkgPaths.map((p) => path.relative(rootDir, p)),
+    ].join(" ");
+    execSync(`git add ${filesToAdd}`);
+    execSync(
+      `git commit -m \"chore(${name}): release v${next} and update deps\"`,
+    );
+    const tagName = `${name}@v${next}`;
+    execSync(`git tag -a ${tagName} -m \"${name} v${next}\"`);
+    execSync("git push --follow-tags", { stdio: "inherit" });
 
-      // Publish to GitHub Packages
-      const pubCmd = `npm publish --registry ${REGISTRY}`;
-      execSync(pubCmd, { cwd: pkgDir, stdio: "inherit" });
+    // Publish to GitHub Packages
+    const pubCmd = `npm publish --registry ${REGISTRY}`;
+    execSync(pubCmd, { cwd: pkgDir, stdio: "inherit" });
 
-      // Create GitHub release
-      const [owner = "", repo = ""] =
-        process.env.GITHUB_REPOSITORY?.split("/") ?? [];
-      const octokit = new Octokit({ auth: process.env.GH_TOKEN });
-      const release = await octokit.repos.createRelease({
-        owner,
-        repo,
-        tag_name: tagName,
-        name: `${name}@v${next}`,
-        body: log,
-      });
-      releaseIds[name] = release.data.id;
-      releases.push(info);
-    }
-
-    console.log("🎉 All packages released successfully!");
-  } catch (err) {
-    console.error(`❌ Release process failed: ${err}`);
-    rollback();
-    process.exit(1);
+    // Create GitHub release
+    const [owner = "", repo = ""] =
+      process.env.GITHUB_REPOSITORY?.split("/") ?? [];
+    const octokit = new Octokit({ auth: process.env.GH_TOKEN });
+    const release = await octokit.repos.createRelease({
+      owner,
+      repo,
+      tag_name: tagName,
+      name: `${name}@v${next}`,
+      body: log,
+    });
+    releaseIds[name] = release.data.id;
+    releases.push(info);
   }
+
+  console.log("🎉 All packages released successfully!");
 }
 
 main().catch((err) => {
