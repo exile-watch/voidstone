@@ -35,5 +35,8 @@
     "@types/node": "^22.15.2",
     "semantic-release": "^24.2.3",
     "vite": "^6.3.1"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
   }
 }
