@@ -232,62 +232,52 @@ async function rollback(): Promise<void> {
   // Store the commit hash before any release actions
   const originalCommit = execWithLog("git rev-parse HEAD").toString().trim();
 
-  releases.forEach((info) => {
-    const tag = `${info.name}@${info.next}`;
-    try {
-      // Remove tag locally and remotely
-      execWithLog(`git tag -d ${tag}`);
-      execWithLog(`git push origin :refs/tags/${tag}`);
-    } catch {}
-
-    try {
-      // Count commits to revert (1 release commit + N dependency commits)
-      const dependencyCommits =
-        (info as PackageUpdate).dependencyUpdates?.size ?? 0;
-      const commitsToRevert = 1 + dependencyCommits;
-
-      // Reset HEAD by the number of commits
-      execWithLog(`git reset --hard HEAD~${commitsToRevert}`);
-    } catch {}
-
-    try {
-      // Unpublish package
-      execWithLog(
-        `npm unpublish ${info.name}@${info.next} --registry ${REGISTRY}`,
-        { stdio: "ignore", cwd: info.pkgDir },
-      );
-    } catch {}
-
-    try {
-      // Delete GitHub release
-      const id = releaseIds[info.name];
-      if (id) {
-        const [owner = "", repo = ""] =
-          process.env.GITHUB_REPOSITORY?.split("/") ?? [];
-        new Octokit({ auth: process.env.GH_TOKEN }).repos.deleteRelease({
-          owner,
-          repo,
-          release_id: id,
-        });
-      }
-    } catch {}
-  });
-
   try {
-    // Revert to the commit before any release actions
-    execWithLog(`git reset --hard ${originalCommit}`);
+    // 1. Remove all tags first
+    for (const info of releases) {
+      const tag = `${info.name}@${info.next}`;
+      try {
+        execWithLog(`git tag -d ${tag}`);
+        execWithLog(`git push origin :refs/tags/${tag}`);
+      } catch (e) {
+        console.warn(`Failed to remove tag ${tag}:`, e);
+      }
+    }
 
-    // Force push to revert main branch
+    // 2. Reset to original commit and force push
+    execWithLog(`git reset --hard ${originalCommit}`);
     execWithLog("git push origin main --force");
 
-    // Re-open the PR if we can find it
+    // 3. Try to unpublish packages (if they were published)
+    for (const info of releases) {
+      try {
+        execWithLog(
+          `npm unpublish ${info.name}@${info.next} --registry ${REGISTRY}`,
+          { stdio: "ignore", cwd: info.pkgDir },
+        );
+      } catch (e) {
+        console.warn(`Failed to unpublish ${info.name}@${info.next}:`, e);
+      }
+    }
+
+    // 4. Delete GitHub releases
+    const [owner = "", repo = ""] =
+      process.env.GITHUB_REPOSITORY?.split("/") ?? [];
+    const octokit = new Octokit({ auth: process.env.GH_TOKEN });
+
+    await Promise.all(
+      Object.entries(releaseIds).map(([name, id]) =>
+        octokit.repos
+          .deleteRelease({ owner, repo, release_id: id })
+          .catch((e) =>
+            console.warn(`Failed to delete GitHub release for ${name}:`, e),
+          ),
+      ),
+    );
+
+    // 5. Re-open PR if found
     const prNumber = findPRNumberFromCommitMessage(originalCommit);
     if (prNumber) {
-      const [owner = "", repo = ""] =
-        process.env.GITHUB_REPOSITORY?.split("/") ?? [];
-      const octokit = new Octokit({ auth: process.env.GH_TOKEN });
-
-      // Use await with Promise.all to handle both operations concurrently
       await Promise.all([
         octokit.pulls.update({
           owner,
@@ -304,7 +294,8 @@ async function rollback(): Promise<void> {
       ]);
     }
   } catch (error) {
-    console.error("Failed to revert main branch:", error);
+    console.error("Failed to complete rollback:", error);
+    throw error; // Re-throw to ensure process exits with error
   }
 
   console.warn("Rollback complete.");
@@ -399,115 +390,120 @@ async function main(): Promise<void> {
     }
   }
 
-  // 4. Run dry-run publish checks
-  for (const update of updates) {
-    execWithLog(`npm publish --dry-run --registry ${REGISTRY}`, {
-      cwd: update.pkgDir,
-      stdio: "ignore",
-    });
-  }
+  try {
+    // 4. Run dry-run publish checks
+    for (const update of updates) {
+      execWithLog(`npm publish --dry-run --registry ${REGISTRY}`, {
+        cwd: update.pkgDir,
+        stdio: "ignore",
+      });
+    }
 
-  // 5. Update all package.json files
-  for (const update of updates) {
-    const pkgJsonPath = path.join(update.pkgDir, "package.json");
-    const pkg = JSON.parse(fs.readFileSync(pkgJsonPath, "utf-8"));
-    pkg.version = update.next;
+    // 5. Update all package.json files
+    for (const update of updates) {
+      const pkgJsonPath = path.join(update.pkgDir, "package.json");
+      const pkg = JSON.parse(fs.readFileSync(pkgJsonPath, "utf-8"));
+      pkg.version = update.next;
 
-    for (const [dep, version] of update.dependencyUpdates) {
-      for (const depType of [
-        "dependencies",
-        "devDependencies",
-        "peerDependencies",
-        "optionalDependencies",
-      ]) {
-        if (pkg[depType]?.[dep]) {
-          pkg[depType][dep] = `^${version}`;
+      for (const [dep, version] of update.dependencyUpdates) {
+        for (const depType of [
+          "dependencies",
+          "devDependencies",
+          "peerDependencies",
+          "optionalDependencies",
+        ]) {
+          if (pkg[depType]?.[dep]) {
+            pkg[depType][dep] = `^${version}`;
+          }
         }
+      }
+
+      fs.writeFileSync(pkgJsonPath, `${JSON.stringify(pkg, null, 2)}\n`);
+    }
+
+    // 6. Create dependency commits
+    for (const update of updates) {
+      if (update.dependencyUpdates.size > 0) {
+        await createDependencyUpdateCommits(
+          rootDir,
+          update.dependencyUpdates,
+          update.pkgDir,
+        );
       }
     }
 
-    fs.writeFileSync(pkgJsonPath, `${JSON.stringify(pkg, null, 2)}\n`);
-  }
-
-  // 6. Create dependency commits
-  for (const update of updates) {
-    if (update.dependencyUpdates.size > 0) {
-      await createDependencyUpdateCommits(
-        rootDir,
-        update.dependencyUpdates,
-        update.pkgDir,
+    // 7. Update changelogs and track releases
+    for (const update of updates) {
+      const fullLog = await getStream(
+        changelog({
+          preset: "angular",
+          tagPrefix: `${update.name}@`,
+          releaseCount: 0,
+        }),
       );
+      fs.writeFileSync(path.join(update.pkgDir, "CHANGELOG.md"), fullLog);
     }
+
+    // 8. Create release commit
+    const filesToCommit = updates.flatMap((update) => [
+      path.relative(rootDir, path.join(update.pkgDir, "package.json")),
+      path.relative(rootDir, path.join(update.pkgDir, "CHANGELOG.md")),
+    ]);
+
+    execWithLog(`git add ${filesToCommit.join(" ")}`);
+    execWithLog('git commit -m "chore: release [skip ci]"');
+
+    // Track releases only after successful commit
+    updates.forEach((update) => releases.push(update));
+
+    // 9. Create tags
+    for (const update of updates) {
+      const tagName = `${update.name}@${update.next}`;
+      execWithLog(`git tag -a ${tagName} -m "${tagName}"`);
+    }
+
+    execWithLog("git push --follow-tags", { stdio: "inherit" });
+
+    // 10. Publish packages and create GitHub releases
+    for (const update of updates) {
+      try {
+        execWithLog(`npm publish --registry ${REGISTRY}`, {
+          cwd: update.pkgDir,
+          stdio: "inherit",
+        });
+
+        const [owner = "", repo = ""] =
+          process.env.GITHUB_REPOSITORY?.split("/") ?? [];
+        const octokit = new Octokit({ auth: process.env.GH_TOKEN });
+        const tagName = `${update.name}@${update.next}`;
+        const latestLog = await getStream(
+          changelog({
+            preset: "angular",
+            tagPrefix: `${update.name}@`,
+            releaseCount: 1,
+          }),
+        );
+
+        const release = await octokit.repos.createRelease({
+          owner,
+          repo,
+          tag_name: tagName,
+          name: tagName,
+          body: latestLog,
+        });
+
+        releaseIds[update.name] = release.data.id;
+      } catch (error) {
+        // biome-ignore lint/complexity/noUselessCatch: Re-throw to trigger rollback
+        throw error;
+      }
+    }
+
+    console.log("🎉 All packages released successfully!");
+  } catch (error) {
+    // biome-ignore lint/complexity/noUselessCatch: If anything fails after step 4, throw to trigger rollback
+    throw error;
   }
-
-  // 7. Update changelogs and track releases
-  for (const update of updates) {
-    const fullLog = await getStream(
-      changelog({
-        preset: "angular",
-        tagPrefix: `${update.name}@`,
-        releaseCount: 0,
-      }),
-    );
-    fs.writeFileSync(path.join(update.pkgDir, "CHANGELOG.md"), fullLog);
-
-    // Track this update for rollback operations and GitHub release creation.
-    // If any step fails after this point, rollback() will:
-    // 1. Remove git tags
-    // 2. Revert commits
-    // 3. Unpublish from npm
-    // 4. Delete GitHub releases
-    releases.push(update);
-  }
-
-  // 7. Final release commit
-  const filesToCommit = updates.flatMap((update) => [
-    path.relative(rootDir, path.join(update.pkgDir, "package.json")),
-    path.relative(rootDir, path.join(update.pkgDir, "CHANGELOG.md")),
-  ]);
-
-  execWithLog(`git add ${filesToCommit.join(" ")}`);
-  execWithLog('git commit -m "chore: release [skip ci]"');
-
-  // 9. Create tags
-  for (const update of updates) {
-    const tagName = `${update.name}@${update.next}`;
-    execWithLog(`git tag -a ${tagName} -m "${tagName}"`);
-  }
-
-  execWithLog("git push --follow-tags", { stdio: "inherit" });
-
-  // 10. Publish packages and create GitHub releases
-  for (const update of updates) {
-    execWithLog(`npm publish --registry ${REGISTRY}`, {
-      cwd: update.pkgDir,
-      stdio: "inherit",
-    });
-
-    const [owner = "", repo = ""] =
-      process.env.GITHUB_REPOSITORY?.split("/") ?? [];
-    const octokit = new Octokit({ auth: process.env.GH_TOKEN });
-    const tagName = `${update.name}@${update.next}`;
-    const latestLog = await getStream(
-      changelog({
-        preset: "angular",
-        tagPrefix: `${update.name}@`,
-        releaseCount: 1,
-      }),
-    );
-
-    const release = await octokit.repos.createRelease({
-      owner,
-      repo,
-      tag_name: tagName,
-      name: tagName,
-      body: latestLog,
-    });
-
-    releaseIds[update.name] = release.data.id;
-  }
-
-  console.log("🎉 All packages released successfully!");
 }
 
 main().catch(async (err) => {
