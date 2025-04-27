@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.13](https://github.com/exile-watch/voidstone/compare/v1.0.12...v1.0.13) (2025-04-27)
+
+
+### Bug Fixes
+
+* update tag configuration to use object format for better clarity ([567e18b](https://github.com/exile-watch/voidstone/commit/567e18bec32b8cff41e5bedaea71945b7f403a0d))
+
 ## [1.0.12](https://github.com/exile-watch/voidstone/compare/v1.0.11...v1.0.12) (2025-04-27)
 
 
