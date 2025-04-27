@@ -14,6 +14,21 @@ import fg from "fast-glob";
 import getStream from "get-stream";
 import semver from "semver";
 
+async function createDependencyUpdateCommits(
+  rootDir: string,
+  updates: Map<string, string>,
+  pkgDir: string,
+): Promise<void> {
+  const commitMessages = [...updates].map(
+    ([dep, version]) => `chore(deps): bump ${dep} to v${version}`,
+  );
+
+  for (const message of commitMessages) {
+    execSync("git add package.json", { cwd: pkgDir });
+    execSync(`git commit -m "${message}"`, { cwd: pkgDir });
+  }
+}
+
 const defaultWhatBump = async (
   commits: Commit[],
 ): Promise<BumperRecommendation | null | undefined> => {
@@ -118,11 +133,17 @@ function getWorkspacePackagePaths(rootDir: string): string[] {
 async function computePackageBump(
   rootDir: string,
   pkgPath: string,
+  updatedDeps?: Map<string, string>,
 ): Promise<ReleaseInfo | null> {
   const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8"));
   const name = pkg.name as string;
   const current = pkg.version as string;
   const pkgDir = path.dirname(pkgPath);
+
+  // If we have dependency updates, create commits for them
+  if (updatedDeps && updatedDeps.size > 0) {
+    await createDependencyUpdateCommits(rootDir, updatedDeps, pkgDir);
+  }
 
   // Construct Bumper at repository root
   const bumper = new Bumper(rootDir);
@@ -130,6 +151,10 @@ async function computePackageBump(
   bumper.loadPreset("angular");
   // Configure tag prefix for this package's tags
   bumper.tag({ prefix: `${name}@` });
+  // Add path filter to only consider commits affecting this package
+  bumper.commits({
+    path: path.relative(rootDir, pkgDir),
+  });
 
   // Determine bump based on commits since last tag
   const { releaseType } = await bumper.bump(defaultWhatBump);
@@ -146,19 +171,31 @@ function rollback(): void {
   releases.forEach((info) => {
     const tag = `${info.name}@${info.next}`;
     try {
+      // Remove tag locally and remotely
       execSync(`git tag -d ${tag}`);
       execSync(`git push origin :refs/tags/${tag}`);
     } catch {}
+
     try {
-      execSync("git reset --hard HEAD~1");
+      // Count commits to revert (1 release commit + N dependency commits)
+      const dependencyCommits =
+        (info as PackageUpdate).dependencyUpdates?.size ?? 0;
+      const commitsToRevert = 1 + dependencyCommits;
+
+      // Reset HEAD by the number of commits
+      execSync(`git reset --hard HEAD~${commitsToRevert}`);
     } catch {}
+
     try {
+      // Unpublish package
       execSync(
         `npm unpublish ${info.name}@${info.next} --registry ${REGISTRY}`,
         { stdio: "ignore", cwd: info.pkgDir },
       );
     } catch {}
+
     try {
+      // Delete GitHub release
       const id = releaseIds[info.name];
       if (id) {
         const [owner = "", repo = ""] =
@@ -214,29 +251,53 @@ async function main(): Promise<void> {
     return;
   }
 
-  // 2. Second pass: compute dependency updates
+  // 2. Second pass: identify dependency updates
   const bumpMap = new Map(updates.map((u) => [u.name, u.next]));
+  const dependencyBumps = new Map<string, Map<string, string>>();
 
   for (const pkgPath of pkgPaths) {
     const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8"));
-    const update = updates.find((u) => u.name === pkg.name);
-    if (!update) continue;
+    const deps = new Map<string, string>();
 
+    // Check all dependency types
     for (const depType of [
       "dependencies",
       "devDependencies",
       "peerDependencies",
       "optionalDependencies",
     ]) {
-      const deps = pkg[depType];
-      if (!deps) continue;
+      const depsObject = pkg[depType];
+      if (!depsObject) continue;
 
-      Object.keys(deps).forEach((dep) => {
+      Object.keys(depsObject).forEach((dep) => {
         const newVersion = bumpMap.get(dep);
         if (newVersion) {
-          update.dependencyUpdates.set(dep, newVersion);
+          deps.set(dep, newVersion);
         }
       });
+    }
+
+    if (deps.size > 0) {
+      dependencyBumps.set(pkg.name, deps);
+    }
+  }
+
+  // 3. Third pass: compute dependency-triggered bumps
+  for (const [pkgName, deps] of dependencyBumps) {
+    if (!updates.some((u) => u.name === pkgName)) {
+      const pkgPath = pkgPaths.find((p) => {
+        const pkg = JSON.parse(fs.readFileSync(p, "utf-8"));
+        return pkg.name === pkgName;
+      });
+      if (!pkgPath) continue;
+
+      const bump = await computePackageBump(rootDir, pkgPath, deps);
+      if (bump) {
+        updates.push({
+          ...bump,
+          dependencyUpdates: deps,
+        });
+      }
     }
   }
 
