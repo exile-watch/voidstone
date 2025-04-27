@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.24](https://github.com/exile-watch/voidstone/compare/v1.0.23...v1.0.24) (2025-04-27)
+
+
+### Bug Fixes
+
+* update NODE_AUTH_TOKEN to use GH_TOKEN for npm publish ([481df62](https://github.com/exile-watch/voidstone/commit/481df620a62fdc4994a26fdf7e2f3f0a340ca248))
+
 ## [1.0.23](https://github.com/exile-watch/voidstone/compare/v1.0.22...v1.0.23) (2025-04-27)
 
 
