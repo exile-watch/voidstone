@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.19](https://github.com/exile-watch/voidstone/compare/v1.0.18...v1.0.19) (2025-04-27)
+
+
+### Bug Fixes
+
+* move Git setup to the appropriate location in the script ([1787720](https://github.com/exile-watch/voidstone/commit/1787720fc068affd81f5eee3af9c16f1dc5682fe))
+
 ## [1.0.18](https://github.com/exile-watch/voidstone/compare/v1.0.17...v1.0.18) (2025-04-27)
 
 
