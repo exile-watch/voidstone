@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.27](https://github.com/exile-watch/voidstone/compare/v1.0.26...v1.0.27) (2025-04-27)
+
+
+### Bug Fixes
+
+* enhance changelog generation and improve package path handling ([a198ebb](https://github.com/exile-watch/voidstone/commit/a198ebb1d1886498dbde9936c37637993e88007f))
+
 ## [1.0.26](https://github.com/exile-watch/voidstone/compare/v1.0.25...v1.0.26) (2025-04-27)
 
 

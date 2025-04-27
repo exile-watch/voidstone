@@ -1,6 +1,6 @@
 {
   "name": "@exile-watch/voidstone",
-  "version": "1.0.26",
+  "version": "1.0.27",
   "type": "module",
   "repository": {
     "type": "git",
@@ -16,7 +16,9 @@
     "format": "npx @biomejs/biome format --write . --config-path=biome.json",
     "test": "exit 0"
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "bin": {
     "voidstone": "dist/voidstone.es.js"
   },
