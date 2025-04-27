@@ -164,10 +164,29 @@ async function computePackageBump(
 }
 
 /**
+ * Revert and reopen PR if it was closed
+ */
+function findPRNumberFromCommitMessage(commitHash: string): number | null {
+  try {
+    const message = execSync(`git log -1 --format=%B ${commitHash}`).toString();
+    const match = message.match(/\(#(\d+)\)/);
+    return match ? Number.parseInt(match[1], 10) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Rollback any partial release actions
  */
-function rollback(): void {
+async function rollback(): Promise<void> {
   console.warn("Rolling back releases...");
+  const failedPackages = releases.map((r) => `${r.name}@${r.next}`).join(", ");
+  const workflowUrl = `https://github.com/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`;
+
+  // Store the commit hash before any release actions
+  const originalCommit = execSync("git rev-parse HEAD").toString().trim();
+
   releases.forEach((info) => {
     const tag = `${info.name}@${info.next}`;
     try {
@@ -208,6 +227,41 @@ function rollback(): void {
       }
     } catch {}
   });
+
+  try {
+    // Revert to the commit before any release actions
+    execSync(`git reset --hard ${originalCommit}`);
+
+    // Force push to revert main branch
+    execSync("git push origin main --force");
+
+    // Re-open the PR if we can find it
+    const prNumber = findPRNumberFromCommitMessage(originalCommit);
+    if (prNumber) {
+      const [owner = "", repo = ""] =
+        process.env.GITHUB_REPOSITORY?.split("/") ?? [];
+      const octokit = new Octokit({ auth: process.env.GH_TOKEN });
+
+      // Use await with Promise.all to handle both operations concurrently
+      await Promise.all([
+        octokit.pulls.update({
+          owner,
+          repo,
+          pull_number: prNumber,
+          state: "open",
+        }),
+        octokit.issues.createComment({
+          owner,
+          repo,
+          issue_number: prNumber,
+          body: `⚠️ Release failed for: ${failedPackages}\n\nSee workflow details: ${workflowUrl}\n\nThis PR has been automatically reopened.`,
+        }),
+      ]);
+    }
+  } catch (error) {
+    console.error("Failed to revert main branch:", error);
+  }
+
   console.warn("Rollback complete.");
 }
 
@@ -404,8 +458,8 @@ async function main(): Promise<void> {
   console.log("🎉 All packages released successfully!");
 }
 
-main().catch((err) => {
+main().catch(async (err) => {
   console.error(`Unexpected error: ${err}`);
-  rollback();
+  await rollback();
   process.exit(1);
 });
