@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.15](https://github.com/exile-watch/voidstone/compare/v1.0.14...v1.0.15) (2025-04-27)
+
+
+### Bug Fixes
+
+* update tag format in rollback and release functions for consistency ([5b6c7aa](https://github.com/exile-watch/voidstone/commit/5b6c7aaaef0274986945633e057f4cb6b23539b5))
+
 ## [1.0.14](https://github.com/exile-watch/voidstone/compare/v1.0.13...v1.0.14) (2025-04-27)
 
 
