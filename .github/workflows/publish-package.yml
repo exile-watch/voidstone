@@ -31,7 +31,7 @@ jobs:
 
       - run: npm ci
         env:
-          NODE_AUTH_TOKEN: ${{secrets.NPM_TOKEN}}
+          NODE_AUTH_TOKEN: ${{ secrets.GH_TOKEN }}
         if: ${{ steps.release.outputs.release_created }}
 
       - name: Build package
@@ -40,5 +40,5 @@ jobs:
 
       - run: npm publish
         env:
-          NODE_AUTH_TOKEN: ${{secrets.NPM_TOKEN}}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         if: ${{ steps.release.outputs.release_created }}
