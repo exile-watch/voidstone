@@ -141,7 +141,7 @@ async function computePackageBump(
 function rollback(): void {
   console.warn("Rolling back releases...");
   releases.forEach((info) => {
-    const tag = `${info.name}@v${info.next}`;
+    const tag = `${info.name}@${info.next}`;
     try {
       execSync(`git tag -d ${tag}`);
       execSync(`git push origin :refs/tags/${tag}`);
@@ -264,10 +264,10 @@ async function main(): Promise<void> {
       .map((p) => path.relative(rootDir, p));
     execSync(`git add ${relFiles.join(" ")}`);
     execSync(
-      `git commit -m "chore(${name}): release v${next} and update deps"`,
+      `git commit -m "chore(release): release v${next} and update deps [skip-ci]"`,
     );
-    const tagName = `${name}@v${next}`;
-    execSync(`git tag -a ${tagName} -m "${name} v${next}"`);
+    const tagName = `${name}@${next}`;
+    execSync(`git tag -a ${tagName} -m "${name}@${next}"`);
     execSync("git push --follow-tags", { stdio: "inherit" });
 
     // 5. Publish to GitHub Packages
@@ -283,8 +283,8 @@ async function main(): Promise<void> {
     const release = await octokit.repos.createRelease({
       owner,
       repo,
-      tag_name: `${name}@v${next}`,
-      name: `${name}@v${next}`,
+      tag_name: tagName,
+      name: tagName,
       body: log,
     });
     releaseIds[name] = release.data.id;
