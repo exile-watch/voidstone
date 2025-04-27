@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 
 import { execSync } from "node:child_process";
+import type { ExecSyncOptions } from "node:child_process";
+
 import * as fs from "node:fs";
 import path from "node:path";
 import { Octokit } from "@octokit/rest";
@@ -14,23 +16,44 @@ import fg from "fast-glob";
 import getStream from "get-stream";
 import semver from "semver";
 
+function execWithLog(command: string, options: ExecSyncOptions = {}): string {
+  const workingDir = options.cwd ? ` (in ${options.cwd})` : "";
+  console.log(`📝 Executing: ${command}${workingDir}`);
+  try {
+    const output = execSync(command, {
+      ...options,
+      encoding: "utf8",
+      stdio: "pipe",
+    });
+    if (output && output.length > 0) {
+      console.log(`✅ Output:\n${output.trim()}`);
+    }
+    return output;
+  } catch (error) {
+    console.error(`❌ Failed: ${command}${workingDir}`);
+    throw error;
+  }
+}
+
 async function createDependencyUpdateCommits(
   rootDir: string,
   updates: Map<string, string>,
   pkgDir: string,
 ): Promise<void> {
+  const relativeDir = path.relative(rootDir, pkgDir);
   const commitMessages = [...updates].map(
-    ([dep, version]) => `chore(deps): bump ${dep} to v${version}`,
+    ([dep, version]) =>
+      `chore(deps): bump ${dep} to v${version} in ${relativeDir}`,
   );
 
   for (const message of commitMessages) {
     try {
-      execSync("git add package.json", {
+      execWithLog("git add package.json", {
         cwd: pkgDir,
         stdio: "pipe",
       });
 
-      execSync(`git commit -m "${message}"`, {
+      execWithLog(`git commit -m "${message}"`, {
         cwd: pkgDir,
         stdio: "pipe",
       });
@@ -188,7 +211,9 @@ async function computePackageBump(
  */
 function findPRNumberFromCommitMessage(commitHash: string): number | null {
   try {
-    const message = execSync(`git log -1 --format=%B ${commitHash}`).toString();
+    const message = execWithLog(
+      `git log -1 --format=%B ${commitHash}`,
+    ).toString();
     const match = message.match(/\(#(\d+)\)/);
     return match ? Number.parseInt(match[1], 10) : null;
   } catch {
@@ -205,14 +230,14 @@ async function rollback(): Promise<void> {
   const workflowUrl = `https://github.com/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`;
 
   // Store the commit hash before any release actions
-  const originalCommit = execSync("git rev-parse HEAD").toString().trim();
+  const originalCommit = execWithLog("git rev-parse HEAD").toString().trim();
 
   releases.forEach((info) => {
     const tag = `${info.name}@${info.next}`;
     try {
       // Remove tag locally and remotely
-      execSync(`git tag -d ${tag}`);
-      execSync(`git push origin :refs/tags/${tag}`);
+      execWithLog(`git tag -d ${tag}`);
+      execWithLog(`git push origin :refs/tags/${tag}`);
     } catch {}
 
     try {
@@ -222,12 +247,12 @@ async function rollback(): Promise<void> {
       const commitsToRevert = 1 + dependencyCommits;
 
       // Reset HEAD by the number of commits
-      execSync(`git reset --hard HEAD~${commitsToRevert}`);
+      execWithLog(`git reset --hard HEAD~${commitsToRevert}`);
     } catch {}
 
     try {
       // Unpublish package
-      execSync(
+      execWithLog(
         `npm unpublish ${info.name}@${info.next} --registry ${REGISTRY}`,
         { stdio: "ignore", cwd: info.pkgDir },
       );
@@ -250,10 +275,10 @@ async function rollback(): Promise<void> {
 
   try {
     // Revert to the commit before any release actions
-    execSync(`git reset --hard ${originalCommit}`);
+    execWithLog(`git reset --hard ${originalCommit}`);
 
     // Force push to revert main branch
-    execSync("git push origin main --force");
+    execWithLog("git push origin main --force");
 
     // Re-open the PR if we can find it
     const prNumber = findPRNumberFromCommitMessage(originalCommit);
@@ -377,7 +402,7 @@ async function main(): Promise<void> {
 
   // Dry-run publish
   updates.forEach((update) => {
-    execSync(`npm publish --dry-run --registry ${REGISTRY}`, {
+    execWithLog(`npm publish --dry-run --registry ${REGISTRY}`, {
       cwd: update.pkgDir,
       stdio: "ignore",
     });
@@ -425,21 +450,21 @@ async function main(): Promise<void> {
     path.relative(rootDir, path.join(update.pkgDir, "CHANGELOG.md")),
   ]);
 
-  execSync(`git add ${filesToCommit.join(" ")}`);
-  execSync('git commit -m "chore: release [skip ci]"');
+  execWithLog(`git add ${filesToCommit.join(" ")}`);
+  execWithLog('git commit -m "chore: release [skip ci]"');
 
   // Create all tags
   for (const update of updates) {
     const tagName = `${update.name}@${update.next}`;
-    execSync(`git tag -a ${tagName} -m "${tagName}"`);
+    execWithLog(`git tag -a ${tagName} -m "${tagName}"`);
   }
 
   // Single push with all tags
-  execSync("git push --follow-tags", { stdio: "inherit" });
+  execWithLog("git push --follow-tags", { stdio: "inherit" });
 
   // Publish packages
   for (const update of updates) {
-    execSync(`npm publish --registry ${REGISTRY}`, {
+    execWithLog(`npm publish --registry ${REGISTRY}`, {
       cwd: update.pkgDir,
       stdio: "inherit",
     });
