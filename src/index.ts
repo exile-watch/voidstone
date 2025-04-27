@@ -24,11 +24,31 @@ async function createDependencyUpdateCommits(
   );
 
   for (const message of commitMessages) {
-    execSync("git add package.json", { cwd: pkgDir });
-    execSync(`git commit -m "${message}"`, { cwd: pkgDir });
+    try {
+      execSync("git add package.json", {
+        cwd: pkgDir,
+        stdio: "pipe",
+      });
+
+      execSync(`git commit -m "${message}"`, {
+        cwd: pkgDir,
+        stdio: "pipe",
+      });
+    } catch (error) {
+      if (error instanceof Error) {
+        const execError = error as { stdout?: Buffer; stderr?: Buffer };
+        console.error("Git command failed:");
+        console.error("Command:", error.message);
+        console.error("Working directory:", pkgDir);
+        if (execError.stdout)
+          console.error("stdout:", execError.stdout.toString());
+        if (execError.stderr)
+          console.error("stderr:", execError.stderr.toString());
+      }
+      throw error; // Re-throw to trigger rollback
+    }
   }
 }
-
 const defaultWhatBump = async (
   commits: Commit[],
 ): Promise<BumperRecommendation | null | undefined> => {
@@ -453,7 +473,20 @@ async function main(): Promise<void> {
 }
 
 main().catch(async (err) => {
-  console.error(`Unexpected error: ${err}`);
+  console.error("Release failed with error:");
+  if (err instanceof Error) {
+    console.error("Name:", err.name);
+    console.error("Message:", err.message);
+    console.error("Stack:", err.stack);
+
+    // Check for child_process error details
+    const execError = err as { stdout?: Buffer; stderr?: Buffer };
+    if (execError.stdout) console.error("stdout:", execError.stdout.toString());
+    if (execError.stderr) console.error("stderr:", execError.stderr.toString());
+  } else {
+    console.error(err);
+  }
+
   await rollback();
   process.exit(1);
 });
