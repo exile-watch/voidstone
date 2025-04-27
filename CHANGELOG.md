@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.16](https://github.com/exile-watch/voidstone/compare/v1.0.15...v1.0.16) (2025-04-27)
+
+
+### Bug Fixes
+
+* enhance release process with dependency updates and streamlined commits ([f73287e](https://github.com/exile-watch/voidstone/commit/f73287e84e2c3e6c3d332548c415c5081ffd9ae7))
+
 ## [1.0.15](https://github.com/exile-watch/voidstone/compare/v1.0.14...v1.0.15) (2025-04-27)
 
 
