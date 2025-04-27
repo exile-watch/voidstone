@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.23](https://github.com/exile-watch/voidstone/compare/v1.0.22...v1.0.23) (2025-04-27)
+
+
+### Bug Fixes
+
+* update NODE_AUTH_TOKEN to use GH_TOKEN for package installation ([db2d76e](https://github.com/exile-watch/voidstone/commit/db2d76e34bd75deda0779359851c2494c59c2879))
+
 ## [1.0.22](https://github.com/exile-watch/voidstone/compare/v1.0.21...v1.0.22) (2025-04-27)
 
 
