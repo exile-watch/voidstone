@@ -277,16 +277,15 @@ async function main(): Promise<void> {
 
     fs.writeFileSync(pkgJsonPath, `${JSON.stringify(pkg, null, 2)}\n`);
 
-    // Generate changelog
-    const log = await getStream(
-      // releaseCount: 1 means only the last release
+    // For the CHANGELOG.md file - show full history
+    const fullLog = await getStream(
       changelog({
         preset: "angular",
         tagPrefix: `${update.name}@`,
-        releaseCount: 1,
+        releaseCount: 0, // 0 means all releases
       }),
     );
-    fs.writeFileSync(path.join(update.pkgDir, "CHANGELOG.md"), log);
+    fs.writeFileSync(path.join(update.pkgDir, "CHANGELOG.md"), fullLog);
 
     releases.push(update);
   }
@@ -298,7 +297,7 @@ async function main(): Promise<void> {
   ]);
 
   execSync(`git add ${filesToCommit.join(" ")}`);
-  execSync('git commit -m "chore: release [skip-ci]"');
+  execSync('git commit -m "chore: release [skip ci]"');
 
   // Create all tags
   for (const update of updates) {
@@ -321,11 +320,12 @@ async function main(): Promise<void> {
       process.env.GITHUB_REPOSITORY?.split("/") ?? [];
     const octokit = new Octokit({ auth: process.env.GH_TOKEN });
     const tagName = `${update.name}@${update.next}`;
-    const log = await getStream(
+    // For GitHub release - show how only latest changes
+    const latestLog = await getStream(
       changelog({
         preset: "angular",
         tagPrefix: `${update.name}@`,
-        releaseCount: 0,
+        releaseCount: 1, // 1 means only latest release
       }),
     );
 
@@ -334,7 +334,7 @@ async function main(): Promise<void> {
       repo,
       tag_name: tagName,
       name: tagName,
-      body: log,
+      body: latestLog,
     });
 
     releaseIds[update.name] = release.data.id;
