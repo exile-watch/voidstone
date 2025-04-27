@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.26](https://github.com/exile-watch/voidstone/compare/v1.0.25...v1.0.26) (2025-04-27)
+
+
+### Bug Fixes
+
+* improve rollback process for releases and enhance error handling ([2ce292c](https://github.com/exile-watch/voidstone/commit/2ce292cb73c74e9712425c90df7443556804186a))
+
 ## [1.0.25](https://github.com/exile-watch/voidstone/compare/v1.0.24...v1.0.25) (2025-04-27)
 
 
