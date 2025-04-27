@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.18](https://github.com/exile-watch/voidstone/compare/v1.0.17...v1.0.18) (2025-04-27)
+
+
+### Bug Fixes
+
+* implement dependency update commits and enhance package bump logic ([8905aa5](https://github.com/exile-watch/voidstone/commit/8905aa5e246510dd0421d66bff4df106789ed721))
+
 ## [1.0.17](https://github.com/exile-watch/voidstone/compare/v1.0.16...v1.0.17) (2025-04-27)
 
 
