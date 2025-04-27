@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.12](https://github.com/exile-watch/voidstone/compare/v1.0.11...v1.0.12) (2025-04-27)
+
+
+### Bug Fixes
+
+* improve package version bumping logic and streamline release process ([6239cf3](https://github.com/exile-watch/voidstone/commit/6239cf351db31119b5c8092632952e0c6c45a827))
+
 ## [1.0.11](https://github.com/exile-watch/voidstone/compare/v1.0.10...v1.0.11) (2025-04-26)
 
 
