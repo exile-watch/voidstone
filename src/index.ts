@@ -5,10 +5,66 @@ import * as fs from "node:fs";
 import path from "node:path";
 import { Octokit } from "@octokit/rest";
 import changelog from "conventional-changelog";
-import { Bumper } from "conventional-recommended-bump";
+import type { Commit } from "conventional-commits-parser";
+import {
+  Bumper,
+  type BumperRecommendation,
+} from "conventional-recommended-bump";
 import fg from "fast-glob";
 import getStream from "get-stream";
 import semver from "semver";
+
+const defaultWhatBump = async (
+  commits: Commit[],
+): Promise<BumperRecommendation | null | undefined> => {
+  if (!commits.length) return null;
+
+  // Level meanings:
+  // 0 = major version bump - breaking changes
+  // 1 = minor version bump - new features
+  // 2 = patch version bump - fixes and small changes
+  let level: 0 | 1 | 2 = 2;
+  let breakings = 0;
+  let features = 0;
+
+  for (const commit of commits) {
+    switch (commit.type) {
+      case "feat":
+        features += 1;
+        if (Number(level) === 2) {
+          level = 1;
+        }
+        break;
+      case "fix":
+      case "perf":
+      case "refactor":
+      case "chore":
+      case "docs":
+      case "style":
+      case "test":
+        // These types only contribute to patch version
+        break;
+      default:
+        break;
+    }
+
+    // Check for BREAKING CHANGES in any commit type
+    if (commit.notes.length > 0) {
+      breakings += commit.notes.length;
+      level = 0;
+    }
+  }
+  return {
+    level,
+    reason: breakings
+      ? `There are ${breakings} BREAKING CHANGES`
+      : features
+        ? `There are ${features} new features`
+        : "There are only patch changes in this release",
+    releaseType:
+      Number(level) === 0 ? "major" : Number(level) === 1 ? "minor" : "patch",
+  };
+};
 
 interface ReleaseInfo {
   name: string;
@@ -70,10 +126,10 @@ async function computePackageBump(
   // Load conventional-changelog preset
   bumper.loadPreset("angular");
   // Configure tag prefix for this package's tags
-  bumper.tag({prefix: `${name}@`});
+  bumper.tag({ prefix: `${name}@` });
 
   // Determine bump based on commits since last tag
-  const { releaseType } = await bumper.bump();
+  const { releaseType } = await bumper.bump(defaultWhatBump);
   const next = semver.inc(current, releaseType as "major" | "minor" | "patch");
   if (!next || next === current) return null;
   return { name, current, next, pkgDir };
