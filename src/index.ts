@@ -57,18 +57,26 @@ function getWorkspacePackagePaths(rootDir: string): string[] {
  * Compute next version bump for a package via conventional commits
  */
 async function computePackageBump(
+  rootDir: string,
   pkgPath: string,
 ): Promise<ReleaseInfo | null> {
   const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8"));
   const name = pkg.name as string;
   const current = pkg.version as string;
+  const pkgDir = path.dirname(pkgPath);
 
-  const bumper = new Bumper(path.dirname(pkgPath));
+  // Construct Bumper at repository root
+  const bumper = new Bumper(rootDir);
+  // Load conventional-changelog preset
   bumper.loadPreset("angular");
+  // Configure tag prefix for this package's tags
+  bumper.tag(`${name}@`);
+
+  // Determine bump based on commits since last tag
   const { releaseType } = await bumper.bump();
   const next = semver.inc(current, releaseType as "major" | "minor" | "patch");
   if (!next || next === current) return null;
-  return { name, current, next, pkgDir: path.dirname(pkgPath) };
+  return { name, current, next, pkgDir };
 }
 
 /**
@@ -128,7 +136,9 @@ async function main(): Promise<void> {
   const pkgPaths = getWorkspacePackagePaths(rootDir);
 
   // Compute bumps
-  const bumps = await Promise.all(pkgPaths.map(computePackageBump));
+  const bumps = await Promise.all(
+    pkgPaths.map((p) => computePackageBump(rootDir, p)),
+  );
   const toRelease = bumps.filter((b): b is ReleaseInfo => Boolean(b));
 
   if (toRelease.length === 0) {
@@ -198,10 +208,10 @@ async function main(): Promise<void> {
       .map((p) => path.relative(rootDir, p));
     execSync(`git add ${relFiles.join(" ")}`);
     execSync(
-      `git commit -m \"chore(${name}): release v${next} and update deps\"`,
+      `git commit -m "chore(${name}): release v${next} and update deps"`,
     );
     const tagName = `${name}@v${next}`;
-    execSync(`git tag -a ${tagName} -m \"${name} v${next}\"`);
+    execSync(`git tag -a ${tagName} -m "${name} v${next}"`);
     execSync("git push --follow-tags", { stdio: "inherit" });
 
     // 5. Publish to GitHub Packages
@@ -217,7 +227,7 @@ async function main(): Promise<void> {
     const release = await octokit.repos.createRelease({
       owner,
       repo,
-      tag_name: tagName,
+      tag_name: `${name}@v${next}`,
       name: `${name}@v${next}`,
       body: log,
     });
