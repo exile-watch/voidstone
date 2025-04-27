@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.21](https://github.com/exile-watch/voidstone/compare/v1.0.20...v1.0.21) (2025-04-27)
+
+
+### Bug Fixes
+
+* remove redundant Git setup from the script ([a850604](https://github.com/exile-watch/voidstone/commit/a8506047f15c8fc127023f1ddda383e1b42b86a9))
+* remove unnecessary GH_ACTOR input from GitHub action ([7f9d51b](https://github.com/exile-watch/voidstone/commit/7f9d51bf63e0227c2bc88f1fc412f6b38a6e86ad))
+
 ## [1.0.20](https://github.com/exile-watch/voidstone/compare/v1.0.19...v1.0.20) (2025-04-27)
 
 
