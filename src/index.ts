@@ -70,7 +70,7 @@ async function computePackageBump(
   // Load conventional-changelog preset
   bumper.loadPreset("angular");
   // Configure tag prefix for this package's tags
-  bumper.tag(`${name}@`);
+  bumper.tag({prefix: `${name}@`});
 
   // Determine bump based on commits since last tag
   const { releaseType } = await bumper.bump();
