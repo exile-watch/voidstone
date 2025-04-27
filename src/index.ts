@@ -434,11 +434,17 @@ async function main(): Promise<void> {
 
     // 7. Update changelogs and track releases
     for (const update of updates) {
+      const packagePath = path.relative(rootDir, update.pkgDir);
       const fullLog = await getStream(
         changelog({
           preset: "angular",
           tagPrefix: `${update.name}@`,
           releaseCount: 0,
+          config: {
+            gitRawCommitsOpts: {
+              path: packagePath,
+            },
+          },
         }),
       );
       fs.writeFileSync(path.join(update.pkgDir, "CHANGELOG.md"), fullLog);
@@ -466,6 +472,7 @@ async function main(): Promise<void> {
 
     // 10. Publish packages and create GitHub releases
     for (const update of updates) {
+      const packagePath = path.relative(rootDir, update.pkgDir);
       try {
         execWithLog(`npm publish --registry ${REGISTRY}`, {
           cwd: update.pkgDir,
@@ -481,6 +488,11 @@ async function main(): Promise<void> {
             preset: "angular",
             tagPrefix: `${update.name}@`,
             releaseCount: 1,
+            config: {
+              gitRawCommitsOpts: {
+                path: packagePath,
+              },
+            },
           }),
         );
 
