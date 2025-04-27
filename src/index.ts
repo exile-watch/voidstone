@@ -274,12 +274,6 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  // Git setup
-  execSync('git config user.name "github-actions[bot]"');
-  execSync(
-    'git config user.email "github-actions[bot]@users.noreply.github.com"',
-  );
-
   let rootDir: string;
   try {
     rootDir = findRepoRoot();
