@@ -329,7 +329,7 @@ async function main(): Promise<void> {
 
   const pkgPaths = getWorkspacePackagePaths(rootDir);
 
-  // 1. First pass: compute direct version bumps
+  // 1. Calculate direct version bumps based on commits
   const directBumps = await Promise.all(
     pkgPaths.map(async (pkgPath) => {
       const bump = await computePackageBump(rootDir, pkgPath);
@@ -350,7 +350,7 @@ async function main(): Promise<void> {
     return;
   }
 
-  // 2. Second pass: identify dependency updates
+  // 2. Calculate dependency updates
   const bumpMap = new Map(updates.map((u) => [u.name, u.next]));
   const dependencyBumps = new Map<string, Map<string, string>>();
 
@@ -358,7 +358,6 @@ async function main(): Promise<void> {
     const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8"));
     const deps = new Map<string, string>();
 
-    // Check all dependency types
     for (const depType of [
       "dependencies",
       "devDependencies",
@@ -381,7 +380,7 @@ async function main(): Promise<void> {
     }
   }
 
-  // 3. Third pass: compute dependency-triggered bumps
+  // 3. Calculate dependency-triggered bumps
   for (const [pkgName, deps] of dependencyBumps) {
     if (!updates.some((u) => u.name === pkgName)) {
       const pkgPath = pkgPaths.find((p) => {
@@ -390,7 +389,7 @@ async function main(): Promise<void> {
       });
       if (!pkgPath) continue;
 
-      const bump = await computePackageBump(rootDir, pkgPath, deps);
+      const bump = await computePackageBump(rootDir, pkgPath);
       if (bump) {
         updates.push({
           ...bump,
@@ -400,22 +399,20 @@ async function main(): Promise<void> {
     }
   }
 
-  // Dry-run publish
-  updates.forEach((update) => {
+  // 4. Run dry-run publish checks
+  for (const update of updates) {
     execWithLog(`npm publish --dry-run --registry ${REGISTRY}`, {
       cwd: update.pkgDir,
       stdio: "ignore",
     });
-  });
+  }
 
-  // Single pass for all updates
+  // 5. Update all package.json files
   for (const update of updates) {
-    // Update package.json version
     const pkgJsonPath = path.join(update.pkgDir, "package.json");
     const pkg = JSON.parse(fs.readFileSync(pkgJsonPath, "utf-8"));
     pkg.version = update.next;
 
-    // Update dependencies
     for (const [dep, version] of update.dependencyUpdates) {
       for (const depType of [
         "dependencies",
@@ -430,21 +427,40 @@ async function main(): Promise<void> {
     }
 
     fs.writeFileSync(pkgJsonPath, `${JSON.stringify(pkg, null, 2)}\n`);
+  }
 
-    // For the CHANGELOG.md file - show full history
+  // 6. Create dependency commits
+  for (const update of updates) {
+    if (update.dependencyUpdates.size > 0) {
+      await createDependencyUpdateCommits(
+        rootDir,
+        update.dependencyUpdates,
+        update.pkgDir,
+      );
+    }
+  }
+
+  // 7. Update changelogs and track releases
+  for (const update of updates) {
     const fullLog = await getStream(
       changelog({
         preset: "angular",
         tagPrefix: `${update.name}@`,
-        releaseCount: 0, // 0 means all releases
+        releaseCount: 0,
       }),
     );
     fs.writeFileSync(path.join(update.pkgDir, "CHANGELOG.md"), fullLog);
 
+    // Track this update for rollback operations and GitHub release creation.
+    // If any step fails after this point, rollback() will:
+    // 1. Remove git tags
+    // 2. Revert commits
+    // 3. Unpublish from npm
+    // 4. Delete GitHub releases
     releases.push(update);
   }
 
-  // Single commit for all changes
+  // 7. Final release commit
   const filesToCommit = updates.flatMap((update) => [
     path.relative(rootDir, path.join(update.pkgDir, "package.json")),
     path.relative(rootDir, path.join(update.pkgDir, "CHANGELOG.md")),
@@ -453,33 +469,30 @@ async function main(): Promise<void> {
   execWithLog(`git add ${filesToCommit.join(" ")}`);
   execWithLog('git commit -m "chore: release [skip ci]"');
 
-  // Create all tags
+  // 9. Create tags
   for (const update of updates) {
     const tagName = `${update.name}@${update.next}`;
     execWithLog(`git tag -a ${tagName} -m "${tagName}"`);
   }
 
-  // Single push with all tags
   execWithLog("git push --follow-tags", { stdio: "inherit" });
 
-  // Publish packages
+  // 10. Publish packages and create GitHub releases
   for (const update of updates) {
     execWithLog(`npm publish --registry ${REGISTRY}`, {
       cwd: update.pkgDir,
       stdio: "inherit",
     });
 
-    // Create GitHub release
     const [owner = "", repo = ""] =
       process.env.GITHUB_REPOSITORY?.split("/") ?? [];
     const octokit = new Octokit({ auth: process.env.GH_TOKEN });
     const tagName = `${update.name}@${update.next}`;
-    // For GitHub release - show how only latest changes
     const latestLog = await getStream(
       changelog({
         preset: "angular",
         tagPrefix: `${update.name}@`,
-        releaseCount: 1, // 1 means only latest release
+        releaseCount: 1,
       }),
     );
 
