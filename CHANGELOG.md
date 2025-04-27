@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.17](https://github.com/exile-watch/voidstone/compare/v1.0.16...v1.0.17) (2025-04-27)
+
+
+### Bug Fixes
+
+* update changelog generation to include full history and latest changes ([f949328](https://github.com/exile-watch/voidstone/commit/f94932855a7c75a527eb920fe78e303e5f46cb1b))
+
 ## [1.0.16](https://github.com/exile-watch/voidstone/compare/v1.0.15...v1.0.16) (2025-04-27)
 
 
