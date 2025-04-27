@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.20](https://github.com/exile-watch/voidstone/compare/v1.0.19...v1.0.20) (2025-04-27)
+
+
+### Bug Fixes
+
+* enhance rollback functionality to revert releases and reopen PRs ([bcd453e](https://github.com/exile-watch/voidstone/commit/bcd453ecf7f7569c761c80f44fc2bfcfb0bf2e9d))
+
 ## [1.0.19](https://github.com/exile-watch/voidstone/compare/v1.0.18...v1.0.19) (2025-04-27)
 
 
