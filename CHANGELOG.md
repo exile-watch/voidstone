@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.22](https://github.com/exile-watch/voidstone/compare/v1.0.21...v1.0.22) (2025-04-27)
+
+
+### Bug Fixes
+
+* enhance logging for Git commands and streamline execution process ([589366a](https://github.com/exile-watch/voidstone/commit/589366ab6f7632ffa02bf0301548547a7c396e95))
+
 ## [1.0.21](https://github.com/exile-watch/voidstone/compare/v1.0.20...v1.0.21) (2025-04-27)
 
 
