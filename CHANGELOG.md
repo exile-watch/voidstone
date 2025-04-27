@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.14](https://github.com/exile-watch/voidstone/compare/v1.0.13...v1.0.14) (2025-04-27)
+
+
+### Bug Fixes
+
+* implement custom bumping logic to enhance version determination based on commit types ([50dcee1](https://github.com/exile-watch/voidstone/commit/50dcee1791877a90244ae8b94c35693c9fbb7e57))
+
 ## [1.0.13](https://github.com/exile-watch/voidstone/compare/v1.0.12...v1.0.13) (2025-04-27)
 
 
