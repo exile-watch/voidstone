@@ -27,7 +27,6 @@ jobs:
         uses: exile-watch/doryani/auth-github-registry@main
         with:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
-          GH_ACTOR: ${{ github.actor }}
         if: ${{ steps.release.outputs.release_created }}
 
       - run: npm ci
