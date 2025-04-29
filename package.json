@@ -14,11 +14,9 @@
     "lint": "npx @biomejs/biome check . --config-path=biome.json",
     "lint:write": "npx @biomejs/biome check --write . --config-path=biome.json",
     "format": "npx @biomejs/biome format --write . --config-path=biome.json",
-    "test": "exit 0"
+    "test": "vitest run"
   },
-  "files": [
-    "dist"
-  ],
+  "files": ["dist"],
   "bin": {
     "voidstone": "dist/voidstone.es.js"
   },
@@ -36,7 +34,9 @@
     "@exile-watch/typescript-config": "^1.2.0",
     "@types/conventional-changelog": "^6.0.0",
     "@types/node": "^22.15.2",
-    "vite": "^6.3.1"
+    "@vitest/coverage-v8": "^3.1.2",
+    "vite": "^6.3.1",
+    "vitest": "^3.1.2"
   },
   "publishConfig": {
     "registry": "https://npm.pkg.github.com"
