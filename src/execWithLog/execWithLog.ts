@@ -1,0 +1,22 @@
+import { type ExecSyncOptions, execSync } from "node:child_process";
+
+function execWithLog(command: string, options: ExecSyncOptions = {}): string {
+  const workingDir = options.cwd ? ` (in ${options.cwd})` : "";
+  console.log(`📝 Executing: ${command}${workingDir}`);
+  try {
+    const output = execSync(command, {
+      ...options,
+      encoding: "utf8",
+      stdio: "pipe",
+    });
+    if (output && output.length > 0) {
+      console.log(`✅ Output:\n${output.trim()}`);
+    }
+    return output;
+  } catch (error) {
+    console.error(`❌ Failed: ${command}${workingDir}`);
+    throw error;
+  }
+}
+
+export { execWithLog };
