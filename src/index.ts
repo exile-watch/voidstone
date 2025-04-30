@@ -1,234 +1,65 @@
 #!/usr/bin/env node
 
-import * as fs from "node:fs";
-import path from "node:path";
-import { Octokit } from "@octokit/rest";
-import changelog from "conventional-changelog";
-
-import getStream from "get-stream";
-
-import { computePackageBump } from "./computePackageBump/computePackageBump.js";
-import { createDependencyUpdateCommits } from "./createDependencyUpdateCommits/createDependencyUpdateCommits.js";
-import { execWithLog } from "./execWithLog/execWithLog.js";
-import { findRepoRoot } from "./findRepoRoot/findRepoRoot.js";
-import { getWorkspacePackagePaths } from "./getWorkspacePackagePaths/getWorkspacePackagePaths.js";
-import { rollback } from "./rollback/rollback.js";
+import { validateEnvs } from "./steps/1-validate-envs/validateEnvs.js";
+import { getRootDir } from "./steps/2-discover-root-dir/getRootDir.js";
+import { computeDirectBumps } from "./steps/3-compute-direct-bumps/computeDirectBumps.js";
+import { computeDependencyUpdates } from "./steps/4-compute-dependency-updates/computeDependencyUpdates.js";
+import { computeTriggeredBumps } from "./steps/5-compute-triggered-bumps/computeTriggeredBumps.js";
+import { runDryRun } from "./steps/6-run-dry-run/runDryRun.js";
+import { updatePackageJsons } from "./steps/7-update-package-jsons/updatePackageJsons.js";
+import { commitDependencyUpdates } from "./steps/8-commit-dependency-updates/commitDependencyUpdates.js";
+import { updateChangelogs } from "./steps/9-update-changelogs/updateChangelogs.js";
+import { commitAndTagReleases } from "./steps/10-commit-tag-releases/commitAndTagReleases.js";
+import { publishAndRelease } from "./steps/11-publish-and-release/publishAndRelease.js";
 import type { PackageUpdate, ReleaseInfo } from "./types.js";
+import { getWorkspacePackagePaths } from "./utils/getWorkspacePackagePaths/getWorkspacePackagePaths.js";
+import { rollback } from "./utils/rollback/rollback.js";
 
 const releases: ReleaseInfo[] = [];
 const releaseIds: Record<string, number> = {};
-const REGISTRY = "https://npm.pkg.github.com/";
 
 /**
  * Main release flow
  */
 async function main(): Promise<void> {
-  if (!process.env.GH_TOKEN) {
-    console.error("❌ GH_TOKEN environment variable is required for releasing");
-    process.exit(1);
-  }
+  // 1. Validate environment variables
+  validateEnvs();
 
-  let rootDir: string;
-  try {
-    rootDir = findRepoRoot();
-  } catch (e: any) {
-    console.error(`❌ ${e.message}`);
-    process.exit(1);
-  }
-
+  // 2. Discover root directory
+  const rootDir = getRootDir();
   const pkgPaths = getWorkspacePackagePaths(rootDir);
 
-  // 1. Calculate direct version bumps based on commits
-  const directBumps = await Promise.all(
-    pkgPaths.map(async (pkgPath) => {
-      const bump = await computePackageBump(rootDir, pkgPath);
-      if (!bump) return null;
-      return {
-        ...bump,
-        dependencyUpdates: new Map<string, string>(),
-      } as PackageUpdate;
-    }),
-  );
-
-  const updates: PackageUpdate[] = directBumps.filter(
-    (bump): bump is PackageUpdate => bump !== null,
-  );
-
-  if (updates.length === 0) {
+  // 3. Compute direct bumps
+  const updates = await computeDirectBumps(rootDir, pkgPaths);
+  if (!updates.length) {
     console.log("📦 No package changes detected. Nothing to release.");
     return;
   }
 
-  // 2. Calculate dependency updates
-  const bumpMap = new Map(updates.map((u) => [u.name, u.next]));
-  const dependencyBumps = new Map<string, Map<string, string>>();
+  // 4. Compute dependency updates
+  const dependencyBumps = computeDependencyUpdates(pkgPaths, updates);
 
-  for (const pkgPath of pkgPaths) {
-    const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8"));
-    const deps = new Map<string, string>();
-
-    for (const depType of [
-      "dependencies",
-      "devDependencies",
-      "peerDependencies",
-      "optionalDependencies",
-    ]) {
-      const depsObject = pkg[depType];
-      if (!depsObject) continue;
-
-      Object.keys(depsObject).forEach((dep) => {
-        const newVersion = bumpMap.get(dep);
-        if (newVersion) {
-          deps.set(dep, newVersion);
-        }
-      });
-    }
-
-    if (deps.size > 0) {
-      dependencyBumps.set(pkg.name, deps);
-    }
-  }
-
-  // 3. Calculate dependency-triggered bumps
-  for (const [pkgName, deps] of dependencyBumps) {
-    if (!updates.some((u) => u.name === pkgName)) {
-      const pkgPath = pkgPaths.find((p) => {
-        const pkg = JSON.parse(fs.readFileSync(p, "utf-8"));
-        return pkg.name === pkgName;
-      });
-      if (!pkgPath) continue;
-
-      const bump = await computePackageBump(rootDir, pkgPath);
-      if (bump) {
-        updates.push({
-          ...bump,
-          dependencyUpdates: deps,
-        });
-      }
-    }
-  }
+  // 5. Compute triggered bumps
+  await computeTriggeredBumps(rootDir, pkgPaths, updates, dependencyBumps);
 
   try {
-    // 4. Run dry-run publish checks
-    for (const update of updates) {
-      execWithLog(`npm publish --dry-run --registry ${REGISTRY}`, {
-        cwd: update.pkgDir,
-        stdio: "ignore",
-      });
-    }
+    // 6. Run dry-run publish checks
+    runDryRun(updates);
 
-    // 5. Update all package.json files
-    for (const update of updates) {
-      const pkgJsonPath = path.join(update.pkgDir, "package.json");
-      const pkg = JSON.parse(fs.readFileSync(pkgJsonPath, "utf-8"));
-      pkg.version = update.next;
+    // 7. Apply version and dependency updates to package.json
+    updatePackageJsons(updates);
 
-      for (const [dep, version] of update.dependencyUpdates) {
-        for (const depType of [
-          "dependencies",
-          "devDependencies",
-          "peerDependencies",
-          "optionalDependencies",
-        ]) {
-          if (pkg[depType]?.[dep]) {
-            pkg[depType][dep] = `^${version}`;
-          }
-        }
-      }
+    // 8. Commit dependency updates
+    await commitDependencyUpdates(rootDir, updates);
 
-      fs.writeFileSync(pkgJsonPath, `${JSON.stringify(pkg, null, 2)}\n`);
-    }
+    // 9. Update changelogs and track releases
+    await updateChangelogs(rootDir, updates);
 
-    // 6. Create dependency commits
-    for (const update of updates) {
-      if (update.dependencyUpdates.size > 0) {
-        await createDependencyUpdateCommits(
-          rootDir,
-          update.dependencyUpdates,
-          update.pkgDir,
-        );
-      }
-    }
+    // 10. Commit and tag releases
+    commitAndTagReleases(updates);
 
-    // 7. Update changelogs and track releases
-    for (const update of updates) {
-      const packagePath = path.relative(rootDir, update.pkgDir);
-      const fullLog = await getStream(
-        changelog({
-          preset: "angular",
-          tagPrefix: `${update.name}@`,
-          releaseCount: 0,
-          config: {
-            gitRawCommitsOpts: {
-              path: packagePath,
-            },
-          },
-        }),
-      );
-      fs.writeFileSync(path.join(update.pkgDir, "CHANGELOG.md"), fullLog);
-    }
-
-    // 8. Create release commit
-    const filesToCommit = updates.flatMap((update) => [
-      path.relative(rootDir, path.join(update.pkgDir, "package.json")),
-      path.relative(rootDir, path.join(update.pkgDir, "CHANGELOG.md")),
-    ]);
-
-    execWithLog(`git add ${filesToCommit.join(" ")}`);
-    execWithLog('git commit -m "chore: release [skip ci]"');
-
-    // Track releases only after successful commit
-    updates.forEach((update) => releases.push(update));
-
-    // 9. Create tags
-    for (const update of updates) {
-      const tagName = `${update.name}@${update.next}`;
-      execWithLog(`git tag -a ${tagName} -m "${tagName}"`);
-    }
-
-    execWithLog("git push --follow-tags", { stdio: "inherit" });
-
-    // 10. Publish packages and create GitHub releases
-    for (const update of updates) {
-      const packagePath = path.relative(rootDir, update.pkgDir);
-      try {
-        execWithLog(`npm publish --registry ${REGISTRY}`, {
-          cwd: update.pkgDir,
-          stdio: "inherit",
-        });
-
-        const [owner = "", repo = ""] =
-          process.env.GITHUB_REPOSITORY?.split("/") ?? [];
-        const octokit = new Octokit({ auth: process.env.GH_TOKEN });
-        const tagName = `${update.name}@${update.next}`;
-        const latestLog = await getStream(
-          changelog({
-            preset: "angular",
-            tagPrefix: `${update.name}@`,
-            releaseCount: 1,
-            config: {
-              gitRawCommitsOpts: {
-                path: packagePath,
-              },
-            },
-          }),
-        );
-
-        const release = await octokit.repos.createRelease({
-          owner,
-          repo,
-          tag_name: tagName,
-          name: tagName,
-          body: latestLog,
-        });
-
-        releaseIds[update.name] = release.data.id;
-      } catch (error) {
-        // biome-ignore lint/complexity/noUselessCatch: Re-throw to trigger rollback
-        throw error;
-      }
-    }
-
+    // 11. Publish packages and create GitHub releases
+    await publishAndRelease(rootDir, updates, releaseIds);
     console.log("🎉 All packages released successfully!");
   } catch (error) {
     // biome-ignore lint/complexity/noUselessCatch: If anything fails after step 4, throw to trigger rollback

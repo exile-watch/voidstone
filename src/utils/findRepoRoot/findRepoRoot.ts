@@ -18,7 +18,7 @@ function findRepoRoot(): string {
       if (fs.existsSync(rootPkgPath)) {
         return parent;
       }
-      throw new Error("Could not find package.json in any parent directory");
+      throw new Error("❌ Could not find package.json in any parent directory");
     }
 
     dir = parent;

@@ -2,9 +2,9 @@ import fs from "node:fs";
 import path from "node:path";
 import { Bumper } from "conventional-recommended-bump";
 import semver from "semver";
+import type { ReleaseInfo } from "../../types.js";
 import { createDependencyUpdateCommits } from "../createDependencyUpdateCommits/createDependencyUpdateCommits.js";
 import { defaultWhatBump } from "../defaultWhatBump/defaultWhatBump.js";
-import type { ReleaseInfo } from "../types.js";
 
 /**
  * Compute next version bump for a package via conventional commits

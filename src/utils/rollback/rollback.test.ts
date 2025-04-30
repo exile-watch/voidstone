@@ -1,5 +1,13 @@
 import { Octokit } from "@octokit/rest";
-import { type Mock, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  type Mock,
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import { execWithLog } from "../execWithLog/execWithLog.js";
 import { findPRNumberFromCommitMessage } from "../findPRNumberFromCommitMessage/findPRNumberFromCommitMessage.js";
 import { rollback } from "./rollback.js";
@@ -14,6 +22,7 @@ describe("rollback", () => {
   let deleteRelease: Mock;
   let pullsUpdate: Mock;
   let issuesComment: Mock;
+  let consoleWarnSpy: any;
 
   const singleReleaseInfo = [
     { name: "pkg1", current: "0.9.0", next: "1.0.0", pkgDir: "/tmp/pkg1" },
@@ -43,6 +52,13 @@ describe("rollback", () => {
       pulls: { update: pullsUpdate },
       issues: { createComment: issuesComment },
     }));
+
+    // Silence console.warn
+    consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    consoleWarnSpy.mockRestore();
   });
 
   it("should perform rollback without reopening PR when no PR number is found", async () => {

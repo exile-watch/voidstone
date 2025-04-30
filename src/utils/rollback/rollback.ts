@@ -1,9 +1,8 @@
 import { Octokit } from "@octokit/rest";
+import { REGISTRY } from "../../constants.js";
+import type { ReleaseIds, ReleaseInfo } from "../../types.js";
 import { execWithLog } from "../execWithLog/execWithLog.js";
 import { findPRNumberFromCommitMessage } from "../findPRNumberFromCommitMessage/findPRNumberFromCommitMessage.js";
-import type { ReleaseIds, ReleaseInfo } from "../types.js";
-
-const REGISTRY = "https://npm.pkg.github.com/";
 
 /**
  * Rollback any partial release actions
