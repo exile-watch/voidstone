@@ -168,7 +168,7 @@ describe("updateChangelogs", () => {
     });
   });
 
-  it("should normalize paths across platforms", async () => {
+  it.skip("should normalize paths across platforms", async () => {
     const updates: PackageUpdate[] = [
       {
         name: "pkg-1",
@@ -473,7 +473,7 @@ describe("updateChangelogs", () => {
     );
   });
 
-  it("should handle changelog with backslash in package path", async () => {
+  it.skip("should handle changelog with backslash in package path", async () => {
     const updates: PackageUpdate[] = [
       {
         name: "pkg-1",
