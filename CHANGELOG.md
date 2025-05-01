@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.3](https://github.com/exile-watch/voidstone/compare/v1.1.2...v1.1.3) (2025-05-01)
+
+
+### Bug Fixes
+
+* add schema reference to biome configuration ([7bb7bf7](https://github.com/exile-watch/voidstone/commit/7bb7bf77312b552bf6fbc9f199b284965913498f))
+
 ## [1.1.2](https://github.com/exile-watch/voidstone/compare/v1.1.1...v1.1.2) (2025-05-01)
 
 
