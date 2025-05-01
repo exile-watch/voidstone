@@ -1,0 +1,25 @@
+name: "Code quality assurance: @exile-watch / doryani"
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  code-quality-assurance:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Authenticate to GitHub Registry
+        uses: exile-watch/doryani/auth-github-registry@main
+        with:
+          GH_TOKEN: ${{ inputs.GH_TOKEN }}
+
+      - name: Code quality assurance
+        if: "!contains(github.event.head_commit.message, '[skip ci]')"
+        uses: exile-watch/doryani/code-quality-assurance@main
+        with:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+
+      - name: Build
+        run: npm run build
+        shell: bash
