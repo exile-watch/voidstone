@@ -10,15 +10,24 @@ async function publishAndRelease(
   rootDir: string,
   updates: PackageUpdate[],
   releaseIds: ReleaseIds,
-): Promise<void> {
+): Promise<ReleaseIds> {
   const [owner = "", repo = ""] =
     process.env.GITHUB_REPOSITORY?.split("/") ?? [];
+
+  if (!owner || !repo) {
+    throw new Error(
+      "Missing GITHUB_REPOSITORY environment variable or invalid format. Expected 'owner/repo'",
+    );
+  }
+
   const oct = new Octokit({ auth: process.env.GH_TOKEN });
+
   for (const u of updates) {
     execWithLog(`npm publish --registry ${REGISTRY}`, {
       cwd: u.pkgDir,
       stdio: "inherit",
     });
+
     const pkgRel = path.relative(rootDir, u.pkgDir);
     const latest = await getStream(
       changelog({
@@ -28,6 +37,7 @@ async function publishAndRelease(
         config: { gitRawCommitsOpts: { path: pkgRel } },
       }),
     );
+
     const release = await oct.repos.createRelease({
       owner,
       repo,
@@ -35,11 +45,13 @@ async function publishAndRelease(
       name: `${u.name}@${u.next}`,
       body: latest,
     });
-    // track ids
-    if (u) {
+
+    if (release?.data?.id) {
       releaseIds[u.name] = release.data.id;
     }
   }
+
+  return releaseIds;
 }
 
 export { publishAndRelease };
