@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.1.0](https://github.com/exile-watch/voidstone/compare/v1.0.27...v1.1.0) (2025-05-01)
+
+
+### Features
+
+* add code quality assurance workflow and remove pull request trigger from publish-package.yml ([60536f8](https://github.com/exile-watch/voidstone/commit/60536f8d6232b5d771f2ddb9b2e3f6d99c8a7221))
+* integrate code quality assurance into publish-package workflow ([140ac66](https://github.com/exile-watch/voidstone/commit/140ac66c07511b805e267616bbab0ad2b99a571d))
+* restructure main function and add missing tests to the steps ([6497d38](https://github.com/exile-watch/voidstone/commit/6497d386a208b55986099324125632adbec89f68))
+
+
+### Bug Fixes
+
+* update GitHub token reference to use secrets in code-quality-assurance.yml ([6ceccfb](https://github.com/exile-watch/voidstone/commit/6ceccfbee41272d30b17c000de6b5b3ba7e71df0))
+
 ## [1.0.27](https://github.com/exile-watch/voidstone/compare/v1.0.26...v1.0.27) (2025-04-27)
 
 
