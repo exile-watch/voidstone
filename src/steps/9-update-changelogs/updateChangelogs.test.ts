@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import path from "node:path";
 import changelog from "conventional-changelog";
 import getStream from "get-stream";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -33,14 +34,15 @@ describe("updateChangelogs", () => {
 
     await updateChangelogs(rootDir, updates);
 
-    expect(changelog).toHaveBeenCalledWith({
-      preset: "angular",
-      tagPrefix: "pkg-1@",
-      releaseCount: 0,
-      config: {
-        gitRawCommitsOpts: { path: "packages/pkg-1" },
+    expect(changelog).toHaveBeenCalledWith(
+      {
+        preset: "angular",
+        tagPrefix: "pkg-1@",
+        releaseCount: 1,
       },
-    });
+      {},
+      { from: "pkg-1@1.0.0", path: "packages/pkg-1", to: "pkg-1@2.0.0" },
+    );
 
     expect(fs.writeFileSync).toHaveBeenCalledWith(
       "/root/packages/pkg-1/CHANGELOG.md",
@@ -61,14 +63,19 @@ describe("updateChangelogs", () => {
 
     await updateChangelogs(rootDir, updates);
 
-    expect(changelog).toHaveBeenCalledWith({
-      preset: "angular",
-      tagPrefix: "@scope/pkg-1@",
-      releaseCount: 0,
-      config: {
-        gitRawCommitsOpts: { path: "packages/@scope/pkg-1" },
+    expect(changelog).toHaveBeenCalledWith(
+      {
+        preset: "angular",
+        tagPrefix: "@scope/pkg-1@",
+        releaseCount: 1,
       },
-    });
+      {},
+      {
+        from: "@scope/pkg-1@1.0.0",
+        path: "packages/@scope/pkg-1",
+        to: "@scope/pkg-1@2.0.0",
+      },
+    );
   });
 
   it("should handle empty updates array", async () => {
@@ -135,14 +142,19 @@ describe("updateChangelogs", () => {
 
     await updateChangelogs(rootDir, updates);
 
-    expect(changelog).toHaveBeenCalledWith({
-      preset: "angular",
-      tagPrefix: "pkg with space@",
-      releaseCount: 0,
-      config: {
-        gitRawCommitsOpts: { path: "packages/pkg with space" },
+    expect(changelog).toHaveBeenCalledWith(
+      {
+        preset: "angular",
+        tagPrefix: "pkg with space@",
+        releaseCount: 1,
       },
-    });
+      {},
+      {
+        from: "pkg with space@1.0.0",
+        path: "packages/pkg with space",
+        to: "pkg with space@2.0.0",
+      },
+    );
   });
 
   it("should handle deep package paths", async () => {
@@ -158,14 +170,19 @@ describe("updateChangelogs", () => {
 
     await updateChangelogs(rootDir, updates);
 
-    expect(changelog).toHaveBeenCalledWith({
-      preset: "angular",
-      tagPrefix: "pkg-1@",
-      releaseCount: 0,
-      config: {
-        gitRawCommitsOpts: { path: "packages/group/subgroup/pkg-1" },
+    expect(changelog).toHaveBeenCalledWith(
+      {
+        preset: "angular",
+        tagPrefix: "pkg-1@",
+        releaseCount: 1,
       },
-    });
+      {},
+      {
+        from: "pkg-1@1.0.0",
+        path: "packages/group/subgroup/pkg-1",
+        to: "pkg-1@2.0.0",
+      },
+    );
   });
 
   it.skip("should normalize paths across platforms", async () => {
@@ -308,14 +325,19 @@ describe("updateChangelogs", () => {
 
     await updateChangelogs(rootDir, updates);
 
-    expect(changelog).toHaveBeenCalledWith({
-      preset: "angular",
-      tagPrefix: "root-pkg@",
-      releaseCount: 0,
-      config: {
-        gitRawCommitsOpts: { path: "." },
+    expect(changelog).toHaveBeenCalledWith(
+      {
+        preset: "angular",
+        tagPrefix: "root-pkg@",
+        releaseCount: 1,
       },
-    });
+      {},
+      {
+        from: `${updates[0].name}@${updates[0].current}`,
+        path: ".",
+        to: `${updates[0].name}@${updates[0].next}`,
+      },
+    );
   });
 
   it("should handle package with no changelog file", async () => {
@@ -386,14 +408,19 @@ describe("updateChangelogs", () => {
 
     await updateChangelogs(rootDir, updates);
 
-    expect(changelog).toHaveBeenCalledWith({
-      preset: "angular",
-      tagPrefix: `${longName}@`,
-      releaseCount: 0,
-      config: {
-        gitRawCommitsOpts: { path: `packages/${longName}` },
+    expect(changelog).toHaveBeenCalledWith(
+      {
+        preset: "angular",
+        tagPrefix: `${longName}@`,
+        releaseCount: 1,
       },
-    });
+      {},
+      {
+        from: `${longName}@${updates[0].current}`,
+        path: `packages/${longName}`,
+        to: `${longName}@${updates[0].next}`,
+      },
+    );
   });
 
   it("should handle updates with non-standard version strings", async () => {
@@ -409,14 +436,19 @@ describe("updateChangelogs", () => {
 
     await updateChangelogs(rootDir, updates);
 
-    expect(changelog).toHaveBeenCalledWith({
-      preset: "angular",
-      tagPrefix: "pkg-1@",
-      releaseCount: 0,
-      config: {
-        gitRawCommitsOpts: { path: "packages/pkg-1" },
+    expect(changelog).toHaveBeenCalledWith(
+      {
+        preset: "angular",
+        tagPrefix: "pkg-1@",
+        releaseCount: 1,
       },
-    });
+      {},
+      {
+        from: "pkg-1@1.0.0-rc.1+build.123",
+        path: "packages/pkg-1",
+        to: "pkg-1@2.0.0-beta.1+exp.sha.5114f85",
+      },
+    );
   });
 
   it("should handle package with absolute root path", async () => {
@@ -432,14 +464,15 @@ describe("updateChangelogs", () => {
 
     await updateChangelogs(process.cwd(), updates);
 
-    expect(changelog).toHaveBeenCalledWith({
-      preset: "angular",
-      tagPrefix: "pkg-1@",
-      releaseCount: 0,
-      config: {
-        gitRawCommitsOpts: { path: "." },
+    expect(changelog).toHaveBeenCalledWith(
+      {
+        preset: "angular",
+        tagPrefix: "pkg-1@",
+        releaseCount: 1,
       },
-    });
+      {},
+      { from: "pkg-1@1.0.0", path: ".", to: "pkg-1@2.0.0" },
+    );
   });
 
   it("should handle package with only dependency updates", async () => {
@@ -509,14 +542,15 @@ describe("updateChangelogs", () => {
 
     await updateChangelogs(rootDir, updates);
 
-    expect(changelog).toHaveBeenCalledWith({
-      preset: "angular",
-      tagPrefix: "pkg-1@",
-      releaseCount: 0,
-      config: {
-        gitRawCommitsOpts: { path: "pkg-1" },
+    expect(changelog).toHaveBeenCalledWith(
+      {
+        preset: "angular",
+        tagPrefix: "pkg-1@",
+        releaseCount: 1,
       },
-    });
+      {},
+      { from: "pkg-1@1.0.0", path: "pkg-1", to: "pkg-1@999.999.999" },
+    );
   });
 
   it("should generate separate changelogs for each package", async () => {
@@ -571,9 +605,17 @@ describe("updateChangelogs", () => {
     await updateChangelogs(rootDir, updates);
 
     expect(changelog).toHaveBeenCalledWith(
-      expect.objectContaining({
+      {
+        preset: "angular",
         tagPrefix: "pkg-1@",
-      }),
+        releaseCount: 1,
+      },
+      {},
+      {
+        from: "pkg-1@invalid",
+        path: "packages/pkg-1",
+        to: "pkg-1@also-invalid",
+      },
     );
   });
 });

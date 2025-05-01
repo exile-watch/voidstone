@@ -16,9 +16,7 @@
     "format": "npx @biomejs/biome format --write . --config-path=biome.json",
     "test": "vitest run"
   },
-  "files": [
-    "dist"
-  ],
+  "files": ["dist"],
   "bin": {
     "voidstone": "dist/voidstone.es.js"
   },

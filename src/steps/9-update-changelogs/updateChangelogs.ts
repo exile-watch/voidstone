@@ -15,16 +15,18 @@ export async function updateChangelogs(
 
     const relativePath =
       path.relative(rootDir, update.pkgDir).split(path.sep).join("/") || ".";
+    const gitRawCommitsOpts = {
+      path: relativePath,
+      from: `${update.name}@${update.current}`,
+      to: `${update.name}@${update.next}`,
+    };
     const options = {
       preset: "angular",
       tagPrefix: `${update.name}@`,
-      releaseCount: 0,
-      config: {
-        gitRawCommitsOpts: { path: relativePath },
-      },
+      releaseCount: 1,
     };
 
-    const changelogStream = changelog(options);
+    const changelogStream = changelog(options, {}, gitRawCommitsOpts);
     const changelogContent = await getStream(changelogStream);
 
     // Throw an error if the changelog is empty or malformed
