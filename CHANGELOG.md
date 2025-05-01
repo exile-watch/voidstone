@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.2](https://github.com/exile-watch/voidstone/compare/v1.1.1...v1.1.2) (2025-05-01)
+
+
+### Bug Fixes
+
+* update @exile-watch/biome-config to version 1.3.0 ([2aeb678](https://github.com/exile-watch/voidstone/commit/2aeb6785884c4bd5c7d6d5955f9a75cb951f1b57))
+
 ## [1.1.1](https://github.com/exile-watch/voidstone/compare/v1.1.0...v1.1.1) (2025-05-01)
 
 
