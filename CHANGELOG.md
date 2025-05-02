@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.5](https://github.com/exile-watch/voidstone/compare/v1.1.4...v1.1.5) (2025-05-02)
+
+
+### Bug Fixes
+
+* add git fetch command to update changelogs process ([5a6e854](https://github.com/exile-watch/voidstone/commit/5a6e854f1245aba3116d455d6851da12ced938a3))
+
 ## [1.1.4](https://github.com/exile-watch/voidstone/compare/v1.1.3...v1.1.4) (2025-05-02)
 
 
