@@ -1,9 +1,9 @@
 import fs from "node:fs";
-import path from "node:path";
 import changelog from "conventional-changelog";
 import getStream from "get-stream";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { PackageUpdate } from "../../types.js";
+import { execWithLog } from "../../utils/execWithLog/execWithLog.js";
 import { updateChangelogs } from "./updateChangelogs.js";
 
 vi.mock("node:fs");
@@ -20,6 +20,9 @@ describe("updateChangelogs", () => {
       "# Changelog\n\nChange details...\n\n## 1.0.0",
     );
     vi.spyOn(process, "chdir").mockImplementation((/* _dir */) => {});
+    vi.mock("../../utils/execWithLog/execWithLog.js", () => ({
+      execWithLog: vi.fn(() => Buffer.from("")),
+    }));
   });
 
   it.skip("should create changelog for each package update", async () => {

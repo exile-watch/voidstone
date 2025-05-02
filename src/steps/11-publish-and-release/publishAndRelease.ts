@@ -20,6 +20,8 @@ async function publishAndRelease(
     );
   }
 
+  execWithLog("git fetch --tags --prune", { cwd: rootDir });
+
   const oct = new Octokit({ auth: process.env.GH_TOKEN });
 
   for (const u of updates) {

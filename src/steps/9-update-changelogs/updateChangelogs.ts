@@ -3,6 +3,7 @@ import path from "node:path";
 import conventionalChangelog from "conventional-changelog";
 import getStream from "get-stream";
 import type { PackageUpdate } from "../../types.js";
+import { execWithLog } from "../../utils/execWithLog/execWithLog.js";
 
 export async function updateChangelogs(
   rootDir: string,
@@ -10,6 +11,7 @@ export async function updateChangelogs(
 ): Promise<void> {
   // remember original working directory
   const originalCwd = process.cwd();
+  execWithLog("git fetch --tags --prune", { cwd: rootDir });
 
   try {
     for (const { name, current, next, pkgDir } of updates) {

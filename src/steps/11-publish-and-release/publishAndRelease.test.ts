@@ -91,7 +91,7 @@ describe("publishAndRelease", () => {
 
     await publishAndRelease("/root", updates, releaseIds);
 
-    expect(execWithLog).toHaveBeenCalledTimes(2);
+    expect(execWithLog).toHaveBeenCalledTimes(3);
     expect(mockOctokit.repos.createRelease).toHaveBeenCalledTimes(2);
     expect(releaseIds).toEqual({ "pkg-1": 123, "pkg-2": 456 });
   });
