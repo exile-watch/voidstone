@@ -1,6 +1,6 @@
 import path from "node:path";
 import { Octokit } from "@octokit/rest";
-import changelog from "conventional-changelog";
+import conventionalChangelog from "conventional-changelog";
 import getStream from "get-stream";
 import { REGISTRY } from "../../constants.js";
 import type { PackageUpdate, ReleaseIds } from "../../types.js";
@@ -23,21 +23,37 @@ async function publishAndRelease(
   const oct = new Octokit({ auth: process.env.GH_TOKEN });
 
   for (const u of updates) {
+    // 1) npm publish as before
     execWithLog(`npm publish --registry ${REGISTRY}`, {
       cwd: u.pkgDir,
       stdio: "inherit",
     });
 
-    const pkgRel = path.relative(rootDir, u.pkgDir);
-    const latest = await getStream(
-      changelog({
-        preset: "angular",
-        tagPrefix: `${u.name}@`,
-        releaseCount: 1,
-        config: { gitRawCommitsOpts: { path: pkgRel } },
-      }),
-    );
+    // 2) build changelog for *this* release
+    const relPath =
+      path.relative(rootDir, u.pkgDir).split(path.sep).join("/") || ".";
 
+    const options = {
+      preset: "angular",
+      tagPrefix: `${u.name}@`,
+      releaseCount: 1,
+      lernaPackage: u.name, // scope to this package
+    };
+
+    const context = {};
+
+    const gitRawCommitsOpts = {
+      path: relPath,
+      from: `${u.name}@${u.current}`,
+      to: `${u.name}@${u.next}`,
+    };
+
+    const changelogStream =
+      conventionalChangelog(options, context, gitRawCommitsOpts) ?? {};
+
+    const latest = await getStream(changelogStream);
+
+    // 3) push it into GitHub releases
     const release = await oct.repos.createRelease({
       owner,
       repo,

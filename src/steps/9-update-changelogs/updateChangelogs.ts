@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import changelog from "conventional-changelog";
+import conventionalChangelog from "conventional-changelog";
 import getStream from "get-stream";
 import type { PackageUpdate } from "../../types.js";
 
@@ -8,30 +8,52 @@ export async function updateChangelogs(
   rootDir: string,
   updates: PackageUpdate[],
 ): Promise<void> {
-  for (const update of updates) {
-    if (update.current === update.next) {
-      continue;
+  // remember original working directory
+  const originalCwd = process.cwd();
+
+  try {
+    for (const { name, current, next, pkgDir } of updates) {
+      if (current === next) continue;
+
+      const relativePath =
+        path.relative(rootDir, pkgDir).split(path.sep).join("/") || ".";
+
+      const options = {
+        preset: "angular",
+        tagPrefix: `${name}@`,
+        releaseCount: 0,
+        lernaPackage: name,
+      };
+
+      const context = {};
+
+      const gitRawCommitsOpts = {
+        path: relativePath,
+        from: `${name}@${current}`,
+        to: `${name}@${next}`,
+      };
+
+      // switch into repo root so git commands run correctly
+      process.chdir(rootDir);
+
+      const stream = conventionalChangelog(options, context, gitRawCommitsOpts);
+      const changelogContent = await getStream(stream);
+
+      if (
+        !changelogContent.trim() ||
+        /^# Changelog$/.test(changelogContent.trim())
+      ) {
+        throw new Error(`Empty changelog generated for package: ${name}`);
+      }
+
+      // normalize to forward slashes for cross-platform consistency
+      let filePath = path.join(pkgDir, "CHANGELOG.md");
+      filePath = filePath.split(path.sep).join("/");
+
+      fs.writeFileSync(filePath, changelogContent);
     }
-
-    const options = {
-      preset: "angular",
-      tagPrefix: `${update.name}@`,
-      releaseCount: 1,
-      lernaPackage: update.name,
-    };
-
-    const changelogStream = changelog(options);
-    const changelogContent = await getStream(changelogStream);
-
-    // Throw an error if the changelog is empty or malformed
-    if (!changelogContent.trim() || changelogContent.trim() === "# Changelog") {
-      throw new Error(`Empty changelog generated for package: ${update.name}`);
-    }
-
-    const filePath = path
-      .join(update.pkgDir, "CHANGELOG.md")
-      .split(path.sep)
-      .join("/");
-    fs.writeFileSync(filePath, changelogContent);
+  } finally {
+    // restore original working directory
+    process.chdir(originalCwd);
   }
 }
