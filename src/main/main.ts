@@ -8,7 +8,8 @@ import { updatePackageJsons } from "../steps/7-update-package-jsons/updatePackag
 import { commitDependencyUpdates } from "../steps/8-commit-dependency-updates/commitDependencyUpdates.js";
 import { updateChangelogs } from "../steps/9-update-changelogs/updateChangelogs.js";
 import { commitAndTagReleases } from "../steps/10-commit-tag-releases/commitAndTagReleases.js";
-import { publishAndRelease } from "../steps/11-publish-and-release/publishAndRelease.js";
+import { syncLockfile } from "../steps/11-sync-lockfile/syncLockfile.js";
+import { publishAndRelease } from "../steps/12-publish-and-release/publishAndRelease.js";
 import type { PackageUpdate, ReleaseIds } from "../types.js";
 import { getWorkspacePackagePaths } from "../utils/getWorkspacePackagePaths/getWorkspacePackagePaths.js";
 import { rollback } from "../utils/rollback/rollback.js";
@@ -53,7 +54,10 @@ async function main(): Promise<void> {
     // 10. Commit and tag releases
     commitAndTagReleases(updates);
 
-    // 11. Publish packages and create GitHub releases
+    // 11. Sync lockfile
+    await syncLockfile(rootDir);
+
+    // 12. Publish packages and create GitHub releases
     try {
       const ids = await publishAndRelease(rootDir, updates, releaseIds);
       releaseIds = ids;

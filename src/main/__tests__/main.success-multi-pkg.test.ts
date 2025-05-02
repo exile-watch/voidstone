@@ -12,7 +12,8 @@ import * as updatePkgMod from "../../steps/7-update-package-jsons/updatePackageJ
 import * as commitDepMod from "../../steps/8-commit-dependency-updates/commitDependencyUpdates.js";
 import * as changelogMod from "../../steps/9-update-changelogs/updateChangelogs.js";
 import * as commitTagMod from "../../steps/10-commit-tag-releases/commitAndTagReleases.js";
-import * as publishMod from "../../steps/11-publish-and-release/publishAndRelease.js";
+import * as syncLockfileMod from "../../steps/11-sync-lockfile/syncLockfile.js";
+import * as publishMod from "../../steps/12-publish-and-release/publishAndRelease.js";
 import * as pathsMod from "../../utils/getWorkspacePackagePaths/getWorkspacePackagePaths.js";
 import * as rollbackMod from "../../utils/rollback/rollback.js";
 
@@ -41,6 +42,7 @@ describe("main(): successful flow mutates state correctly", () => {
   const state = {
     versions: {} as Record<string, string>,
     tags: [] as string[],
+    lockfileUpdated: false,
     released: {} as ReleaseIds,
   };
 
@@ -57,6 +59,7 @@ describe("main(): successful flow mutates state correctly", () => {
     // reset state
     state.versions = {};
     state.tags = [];
+    state.lockfileUpdated = false;
     state.released = {};
 
     // 1–5: allow main() to get into the try
@@ -99,7 +102,13 @@ describe("main(): successful flow mutates state correctly", () => {
       },
     );
 
-    // 11. publishAndRelease *record release IDs* in our state
+    // 11. syncLockfile: update lockfile state
+    vi.spyOn(syncLockfileMod, "syncLockfile").mockImplementation(() => {
+      state.lockfileUpdated = true;
+      return Promise.resolve();
+    });
+
+    // 12. publishAndRelease *record release IDs* in our state
     vi.spyOn(publishMod, "publishAndRelease").mockImplementation(
       async (_root, updates, _ids) => {
         const out: ReleaseIds = {};
@@ -120,7 +129,7 @@ describe("main(): successful flow mutates state correctly", () => {
     vi.spyOn(console, "log").mockImplementation(() => {});
   });
 
-  test("main() bumps versions, creates tags, and returns release IDs", async () => {
+  test("main() bumps versions, creates tags, updates lockfile, and returns release IDs", async () => {
     await main();
 
     // Versions bumped correctly
@@ -131,6 +140,9 @@ describe("main(): successful flow mutates state correctly", () => {
 
     // Tags created
     expect(state.tags).toEqual(["pkg-1@1.1.0", "pkg-2@2.2.0"]);
+
+    // Lockfile updated
+    expect(state.lockfileUpdated).toBe(true);
 
     // Release IDs recorded
     expect(state.released).toEqual({

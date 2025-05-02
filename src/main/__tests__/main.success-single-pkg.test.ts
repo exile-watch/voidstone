@@ -1,7 +1,7 @@
 import { beforeAll, beforeEach, describe, expect, test, vi } from "vitest";
 import { main } from "../main.js";
 
-// Step modules to spy on
+// Step modules (for spying)
 import * as envMod from "../../steps/1-validate-envs/validateEnvs.js";
 import * as rootMod from "../../steps/2-discover-root-dir/getRootDir.js";
 import * as directMod from "../../steps/3-compute-direct-bumps/computeDirectBumps.js";
@@ -12,13 +12,14 @@ import * as updatePkgMod from "../../steps/7-update-package-jsons/updatePackageJ
 import * as commitDepMod from "../../steps/8-commit-dependency-updates/commitDependencyUpdates.js";
 import * as changelogMod from "../../steps/9-update-changelogs/updateChangelogs.js";
 import * as commitTagMod from "../../steps/10-commit-tag-releases/commitAndTagReleases.js";
-import * as publishMod from "../../steps/11-publish-and-release/publishAndRelease.js";
+import * as syncLockfileMod from "../../steps/11-sync-lockfile/syncLockfile.js";
+import * as publishMod from "../../steps/12-publish-and-release/publishAndRelease.js";
 import * as pathsMod from "../../utils/getWorkspacePackagePaths/getWorkspacePackagePaths.js";
 import * as rollbackMod from "../../utils/rollback/rollback.js";
 
 import type { PackageUpdate, ReleaseIds } from "../../types.js";
 
-describe("main(): successful flow for single package", () => {
+describe("main(): single package flow", () => {
   const mockUpdates: PackageUpdate[] = [
     {
       name: "pkg-1",
@@ -30,21 +31,19 @@ describe("main(): successful flow for single package", () => {
   ];
   const mockReleaseIds: ReleaseIds = { "pkg-1": 101 };
 
-  // in-memory state
+  // shared in-memory state:
   const state = {
     version: "",
     tag: "",
-    releasedId: 0 as number | null,
+    lockfileUpdated: false,
+    released: 0,
   };
 
   beforeAll(() => {
-    // Prevent top-level process.exit from killing the test runner
-    vi.spyOn(process, "exit").mockImplementation(
-      (code?: string | number | null | undefined) => {
-        throw new Error(`process.exit called with ${code}`);
-      },
-    );
-    // Silence error logs
+    // noop out process.exit so top‐level guard can't kill the test process
+    vi.spyOn(process, "exit").mockImplementation(() => {
+      throw new Error("exit");
+    });
     vi.spyOn(console, "error").mockImplementation(() => {});
   });
 
@@ -53,9 +52,10 @@ describe("main(): successful flow for single package", () => {
     // reset state
     state.version = "";
     state.tag = "";
-    state.releasedId = null;
+    state.lockfileUpdated = false;
+    state.released = 0;
 
-    // Steps 1–5: allow main() to enter the try block
+    // 1–5: allow main() to get into the try
     vi.spyOn(envMod, "validateEnvs").mockImplementation(() => {});
     vi.spyOn(rootMod, "getRootDir").mockReturnValue("/root");
     vi.spyOn(pathsMod, "getWorkspacePackagePaths").mockReturnValue([
@@ -68,54 +68,69 @@ describe("main(): successful flow for single package", () => {
     // 6. dry-run: no state change
     vi.spyOn(dryRunMod, "runDryRun").mockImplementation(() => {});
 
-    // 7. bump version
+    // 7. updatePackageJsons *bump versions* in our state
     vi.spyOn(updatePkgMod, "updatePackageJsons").mockImplementation(
       (updates) => {
         state.version = updates[0].next;
       },
     );
 
-    // 8. commit deps: noop
+    // 8. commitDependencyUpdates: no state change
     vi.spyOn(commitDepMod, "commitDependencyUpdates").mockResolvedValue(
       undefined,
     );
 
-    // 9. changelogs: noop
+    // 9. updateChangelogs: no state change
     vi.spyOn(changelogMod, "updateChangelogs").mockResolvedValue(undefined);
 
-    // 10. tag
+    // 10. commitAndTagReleases *create tag* in our state
     vi.spyOn(commitTagMod, "commitAndTagReleases").mockImplementation(
       (updates) => {
         state.tag = `${updates[0].name}@${updates[0].next}`;
       },
     );
 
-    // 11. publish
+    // 11. syncLockfile: update lockfile state
+    vi.spyOn(syncLockfileMod, "syncLockfile").mockImplementation(() => {
+      state.lockfileUpdated = true;
+      return Promise.resolve();
+    });
+
+    // 12. publishAndRelease *record release ID* in our state
     vi.spyOn(publishMod, "publishAndRelease").mockImplementation(
       async (_root, updates, _ids) => {
-        state.releasedId = mockReleaseIds[updates[0].name];
-        return mockReleaseIds;
+        const out: ReleaseIds = {};
+        out[updates[0].name] = mockReleaseIds[updates[0].name];
+        state.released = mockReleaseIds[updates[0].name];
+        return out;
       },
     );
 
-    // rollback must not fire
+    // rollback must *not* be called
     vi.spyOn(rollbackMod, "rollback").mockImplementation(async () => {
-      throw new Error("rollback should not be called on success");
+      throw new Error("rollback invoked on success!");
     });
 
-    // capture final log
+    // spy console.log for the final 🎉 message
     vi.spyOn(console, "log").mockImplementation(() => {});
   });
 
-  test("main() bumps version, tags, and records release ID", async () => {
+  test("main() successfully bumps version, creates tag, updates lockfile, and returns release ID", async () => {
     await main();
 
-    // state was mutated as expected:
+    // Version bumped correctly
     expect(state.version).toBe("1.1.0");
-    expect(state.tag).toBe("pkg-1@1.1.0");
-    expect(state.releasedId).toBe(101);
 
-    // final success log
+    // Tag created
+    expect(state.tag).toBe("pkg-1@1.1.0");
+
+    // Lockfile updated
+    expect(state.lockfileUpdated).toBe(true);
+
+    // Release ID recorded
+    expect(state.released).toBe(101);
+
+    // Final success log
     expect(console.log).toHaveBeenCalledWith(
       "🎉 All packages released successfully!",
     );

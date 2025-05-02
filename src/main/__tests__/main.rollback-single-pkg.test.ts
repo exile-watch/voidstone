@@ -14,7 +14,8 @@ import * as updatePkgMod from "../../steps/7-update-package-jsons/updatePackageJ
 import * as commitDepMod from "../../steps/8-commit-dependency-updates/commitDependencyUpdates.js";
 import * as changelogMod from "../../steps/9-update-changelogs/updateChangelogs.js";
 import * as commitTagMod from "../../steps/10-commit-tag-releases/commitAndTagReleases.js";
-import * as publishMod from "../../steps/11-publish-and-release/publishAndRelease.js";
+import * as syncLockfileMod from "../../steps/11-sync-lockfile/syncLockfile.js";
+import * as publishMod from "../../steps/12-publish-and-release/publishAndRelease.js";
 
 import type { PackageUpdate, ReleaseIds } from "../../types.js";
 import * as rollbackMod from "../../utils/rollback/rollback.js";
@@ -34,9 +35,10 @@ const initialState: State = {
 
 let state: State;
 
-// Only testing these two steps here; you can add more in TEST_STEPS.
+// Adding syncLockfile to the test steps
 const TEST_STEPS = [
   { name: "commitAndTagReleases", fn: commitTagMod.commitAndTagReleases },
+  { name: "syncLockfile", fn: syncLockfileMod.syncLockfile },
   { name: "publishAndRelease", fn: publishMod.publishAndRelease },
 ] as const;
 
@@ -85,6 +87,7 @@ describe("main(): single-package rollback restores state", () => {
     );
     vi.spyOn(changelogMod, "updateChangelogs").mockResolvedValue(undefined);
     vi.spyOn(commitTagMod, "commitAndTagReleases").mockImplementation(() => {});
+    vi.spyOn(syncLockfileMod, "syncLockfile").mockResolvedValue(undefined);
     vi.spyOn(publishMod, "publishAndRelease").mockResolvedValue(
       {} as ReleaseIds,
     );
@@ -110,6 +113,11 @@ describe("main(): single-package rollback restores state", () => {
 
       if (name === "publishAndRelease") {
         vi.spyOn(publishMod, "publishAndRelease").mockRejectedValue(error);
+      } else if (name === "syncLockfile") {
+        vi.spyOn(syncLockfileMod, "syncLockfile").mockImplementation(() => {
+          state.version = "9.9.9"; // Simulate updated lockfile affecting version
+          throw error;
+        });
       } else {
         vi.spyOn(commitTagMod, "commitAndTagReleases").mockImplementation(
           mutateThenThrow,
