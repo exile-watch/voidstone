@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.4](https://github.com/exile-watch/voidstone/compare/v1.1.3...v1.1.4) (2025-05-02)
+
+
+### Bug Fixes
+
+* surely this will fix changelogs not being generated ([583d5ca](https://github.com/exile-watch/voidstone/commit/583d5cafccb4ffb08382507e4ca7ee53fd051351))
+
 ## [1.1.3](https://github.com/exile-watch/voidstone/compare/v1.1.2...v1.1.3) (2025-05-01)
 
 
