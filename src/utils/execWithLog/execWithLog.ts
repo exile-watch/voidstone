@@ -7,7 +7,7 @@ function execWithLog(command: string, options: ExecSyncOptions = {}): string {
     const output = execSync(command, {
       ...options,
       encoding: "utf8",
-      stdio: "pipe",
+      stdio: options.stdio || "pipe",
     });
     if (output && output.length > 0) {
       console.log(`✅ Output:\n${output.trim()}`);

@@ -11,11 +11,47 @@ describe("syncLockfile", () => {
     vi.spyOn(execWithLogModule, "execWithLog").mockImplementation(
       mockExecWithLog,
     );
+    // Set up the mock to return 'has-changes' for the git diff command
+    mockExecWithLog
+      .mockReturnValueOnce("")
+      .mockReturnValueOnce("")
+      .mockReturnValueOnce("has-changes");
   });
 
-  it("runs npm install and git commands in sequence", async () => {
+  it("runs npm install and git commands with changes detected", () => {
     const rootDir = "/path/to/root";
-    await syncLockfile(rootDir);
+    // Remove await since the function is now synchronous
+    syncLockfile(rootDir);
+
+    expect(mockExecWithLog).toHaveBeenCalledTimes(4);
+    expect(mockExecWithLog).toHaveBeenNthCalledWith(1, "npm install", {
+      cwd: rootDir,
+      stdio: "inherit",
+    });
+    expect(mockExecWithLog).toHaveBeenNthCalledWith(
+      2,
+      "git add package-lock.json",
+      { cwd: rootDir },
+    );
+    expect(mockExecWithLog).toHaveBeenNthCalledWith(
+      3,
+      "git diff --staged --quiet package-lock.json || echo 'has-changes'",
+      { cwd: rootDir },
+    );
+    expect(mockExecWithLog).toHaveBeenNthCalledWith(
+      4,
+      'git commit -m "chore(deps): sync package-lock.json"',
+      { cwd: rootDir },
+    );
+  });
+
+  it("skips commit when no changes are detected", () => {
+    mockExecWithLog.mockReset();
+    // Return empty string for all calls including git diff
+    mockExecWithLog.mockReturnValue("");
+
+    const rootDir = "/path/to/root";
+    syncLockfile(rootDir);
 
     expect(mockExecWithLog).toHaveBeenCalledTimes(3);
     expect(mockExecWithLog).toHaveBeenNthCalledWith(1, "npm install", {
@@ -29,14 +65,15 @@ describe("syncLockfile", () => {
     );
     expect(mockExecWithLog).toHaveBeenNthCalledWith(
       3,
-      'git commit -m "chore(deps): sync package-lock.json"',
+      "git diff --staged --quiet package-lock.json || echo 'has-changes'",
       { cwd: rootDir },
     );
+    // The commit command should not be called
   });
 
-  it("passes through the root directory to each command", async () => {
+  it("passes through the root directory to each command", () => {
     const customRoot = "/custom/project/root";
-    await syncLockfile(customRoot);
+    syncLockfile(customRoot);
 
     // Check that each call used the custom root directory
     expect(
