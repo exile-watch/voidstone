@@ -24,10 +24,14 @@ describe("syncLockfile", () => {
     syncLockfile(rootDir);
 
     expect(mockExecWithLog).toHaveBeenCalledTimes(4);
-    expect(mockExecWithLog).toHaveBeenNthCalledWith(1, "npm install", {
-      cwd: rootDir,
-      stdio: "inherit",
-    });
+    expect(mockExecWithLog).toHaveBeenNthCalledWith(
+      1,
+      "npm install --ignore-scripts",
+      {
+        cwd: rootDir,
+        stdio: "inherit",
+      },
+    );
     expect(mockExecWithLog).toHaveBeenNthCalledWith(
       2,
       "git add package-lock.json",
@@ -54,10 +58,14 @@ describe("syncLockfile", () => {
     syncLockfile(rootDir);
 
     expect(mockExecWithLog).toHaveBeenCalledTimes(3);
-    expect(mockExecWithLog).toHaveBeenNthCalledWith(1, "npm install", {
-      cwd: rootDir,
-      stdio: "inherit",
-    });
+    expect(mockExecWithLog).toHaveBeenNthCalledWith(
+      1,
+      "npm install --ignore-scripts",
+      {
+        cwd: rootDir,
+        stdio: "inherit",
+      },
+    );
     expect(mockExecWithLog).toHaveBeenNthCalledWith(
       2,
       "git add package-lock.json",

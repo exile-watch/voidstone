@@ -1,9 +1,9 @@
+import { execSync } from "node:child_process";
 import fs from "node:fs";
 import changelog from "conventional-changelog";
 import getStream from "get-stream";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { PackageUpdate } from "../../types.js";
-import { execWithLog } from "../../utils/execWithLog/execWithLog.js";
 import { updateChangelogs } from "./updateChangelogs.js";
 
 vi.mock("node:fs");
@@ -14,6 +14,7 @@ describe("updateChangelogs", () => {
   const rootDir = "/root";
 
   beforeEach(() => {
+    execSync("git config --local core.autocrlf false");
     vi.clearAllMocks();
     vi.mocked(changelog).mockReturnValue("mock-stream" as any);
     vi.mocked(getStream).mockResolvedValue(

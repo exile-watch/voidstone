@@ -34,7 +34,7 @@ describe("execWithLog", () => {
       encoding: "utf8",
       stdio: "pipe",
     });
-    expect(mockConsole.log).toHaveBeenCalledWith("📝 Executing: test command");
+    expect(mockConsole.log).toHaveBeenCalledWith("ℹ️ Executing: test command");
     expect(mockConsole.log).toHaveBeenCalledWith("✅ Output:\ncommand output");
     expect(result).toBe(output);
   });
@@ -52,7 +52,7 @@ describe("execWithLog", () => {
       cwd,
     });
     expect(mockConsole.log).toHaveBeenCalledWith(
-      "📝 Executing: test command (in /test/dir)",
+      "ℹ️ Executing: test command (in /test/dir)",
     );
   });
 
@@ -75,8 +75,9 @@ describe("execWithLog", () => {
 
     execWithLog(command);
 
-    expect(mockConsole.log).toHaveBeenCalledTimes(1);
-    expect(mockConsole.log).toHaveBeenCalledWith("📝 Executing: empty command");
+    expect(mockConsole.log).toHaveBeenCalledTimes(2);
+    expect(mockConsole.log).toHaveBeenCalledWith("ℹ️ Executing: empty command");
+    expect(mockConsole.log).toHaveBeenCalledWith("✅ Executed: empty command");
   });
 
   it("should pass through all provided options to execSync", () => {

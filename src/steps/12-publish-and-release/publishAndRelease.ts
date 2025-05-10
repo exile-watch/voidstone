@@ -50,12 +50,14 @@ async function publishAndRelease(
       to: `${u.name}@${u.next}`,
     };
 
+    console.log(`ℹ️ Generating changelog for ${u.name}...`);
     const changelogStream =
       conventionalChangelog(options, context, gitRawCommitsOpts) ?? {};
 
     const latest = await getStream(changelogStream);
-
+    console.log(`✅ Changelog for ${u.name} has been generated.`);
     // 3) push it into GitHub releases
+    console.log(`ℹ️ Creating GitHub release for ${u.name}...`);
     const release = await oct.repos.createRelease({
       owner,
       repo,
@@ -63,6 +65,7 @@ async function publishAndRelease(
       name: `${u.name}@${u.next}`,
       body: latest,
     });
+    console.log(`✅ Release for ${u.name} has been created.`);
 
     if (release?.data?.id) {
       releaseIds[u.name] = release.data.id;
