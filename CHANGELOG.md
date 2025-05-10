@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.2](https://github.com/exile-watch/voidstone/compare/v1.2.1...v1.2.2) (2025-05-10)
+
+
+### Bug Fixes
+
+* update syncLockfile to be synchronous and include git push after commit ([268f9df](https://github.com/exile-watch/voidstone/commit/268f9df984c4c75e83a4b4f7ec8f267c3709515e))
+
 ## [1.2.1](https://github.com/exile-watch/voidstone/compare/v1.2.0...v1.2.1) (2025-05-10)
 
 
