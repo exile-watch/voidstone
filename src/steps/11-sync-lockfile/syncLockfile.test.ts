@@ -23,7 +23,7 @@ describe("syncLockfile", () => {
     // Remove await since the function is now synchronous
     syncLockfile(rootDir);
 
-    expect(mockExecWithLog).toHaveBeenCalledTimes(5);
+    expect(mockExecWithLog).toHaveBeenCalledTimes(4);
     expect(mockExecWithLog).toHaveBeenNthCalledWith(1, "npm install", {
       cwd: rootDir,
       stdio: "inherit",
@@ -40,12 +40,9 @@ describe("syncLockfile", () => {
     );
     expect(mockExecWithLog).toHaveBeenNthCalledWith(
       4,
-      'git commit -m "chore(deps): sync package-lock.json"',
+      'git commit -m "chore(deps): sync package-lock.json [skip ci]"',
       { cwd: rootDir },
     );
-    expect(mockExecWithLog).toHaveBeenNthCalledWith(5, "git push", {
-      cwd: rootDir,
-    });
   });
 
   it("skips commit when no changes are detected", () => {

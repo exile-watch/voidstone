@@ -1,6 +1,7 @@
 import path from "node:path";
 import type { PackageUpdate } from "../../types.js";
 import { execWithLog } from "../../utils/execWithLog/execWithLog.js";
+import { syncLockfile } from "../11-sync-lockfile/syncLockfile.js";
 
 function commitAndTagReleases(updates: PackageUpdate[]): void {
   if (updates.length === 0) return;
@@ -14,6 +15,9 @@ function commitAndTagReleases(updates: PackageUpdate[]): void {
     .map((p) => p.split(path.sep).join("/")); // Normalize path separators to forward slashes
 
   execWithLog(`git add ${files.join(" ")}`);
+
+  syncLockfile(rootDir);
+
   execWithLog('git commit -m "chore: release [skip ci]"');
 
   for (const u of updates) {

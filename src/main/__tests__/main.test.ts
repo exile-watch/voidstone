@@ -9,7 +9,6 @@ import { updatePackageJsons } from "../../steps/7-update-package-jsons/updatePac
 import { commitDependencyUpdates } from "../../steps/8-commit-dependency-updates/commitDependencyUpdates.js";
 import { updateChangelogs } from "../../steps/9-update-changelogs/updateChangelogs.js";
 import { commitAndTagReleases } from "../../steps/10-commit-tag-releases/commitAndTagReleases.js";
-import { syncLockfile } from "../../steps/11-sync-lockfile/syncLockfile.js";
 import { publishAndRelease } from "../../steps/12-publish-and-release/publishAndRelease.js";
 import type { PackageUpdate } from "../../types.js";
 import { getWorkspacePackagePaths } from "../../utils/getWorkspacePackagePaths/getWorkspacePackagePaths.js";
@@ -26,7 +25,6 @@ vi.mock("../../steps/7-update-package-jsons/updatePackageJsons.js");
 vi.mock("../../steps/8-commit-dependency-updates/commitDependencyUpdates.js");
 vi.mock("../../steps/9-update-changelogs/updateChangelogs.js");
 vi.mock("../../steps/10-commit-tag-releases/commitAndTagReleases.js");
-vi.mock("../../steps/11-sync-lockfile/syncLockfile.js");
 vi.mock("../../steps/12-publish-and-release/publishAndRelease.js");
 vi.mock("../../utils/getWorkspacePackagePaths/getWorkspacePackagePaths.js");
 vi.mock("../../utils/rollback/rollback.js");
@@ -69,7 +67,6 @@ describe("main", () => {
     expect(commitDependencyUpdates).toHaveBeenCalledWith("/root", mockUpdates);
     expect(updateChangelogs).toHaveBeenCalledWith("/root", mockUpdates);
     expect(commitAndTagReleases).toHaveBeenCalledWith(mockUpdates);
-    expect(syncLockfile).toHaveBeenCalledWith("/root");
     expect(publishAndRelease).toHaveBeenCalledWith("/root", mockUpdates, {});
     expect(console.log).toHaveBeenCalledWith(
       "🎉 All packages released successfully!",

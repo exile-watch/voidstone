@@ -11,10 +11,12 @@ function syncLockfile(rootDir: string): void {
     ).includes("has-changes");
 
     if (hasChanges) {
-      execWithLog('git commit -m "chore(deps): sync package-lock.json"', {
-        cwd: rootDir,
-      });
-      execWithLog("git push", { cwd: rootDir });
+      execWithLog(
+        'git commit -m "chore(deps): sync package-lock.json [skip ci]"',
+        {
+          cwd: rootDir,
+        },
+      );
     } else {
       console.log("📝 No changes to package-lock.json, skipping commit");
     }

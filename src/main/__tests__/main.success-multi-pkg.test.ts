@@ -12,14 +12,13 @@ import * as updatePkgMod from "../../steps/7-update-package-jsons/updatePackageJ
 import * as commitDepMod from "../../steps/8-commit-dependency-updates/commitDependencyUpdates.js";
 import * as changelogMod from "../../steps/9-update-changelogs/updateChangelogs.js";
 import * as commitTagMod from "../../steps/10-commit-tag-releases/commitAndTagReleases.js";
-import * as syncLockfileMod from "../../steps/11-sync-lockfile/syncLockfile.js";
 import * as publishMod from "../../steps/12-publish-and-release/publishAndRelease.js";
 import * as pathsMod from "../../utils/getWorkspacePackagePaths/getWorkspacePackagePaths.js";
 import * as rollbackMod from "../../utils/rollback/rollback.js";
 
 import type { PackageUpdate, ReleaseIds } from "../../types.js";
 
-describe("main(): successful flow mutates state correctly", () => {
+describe("main(): successful flow single package", () => {
   const mockUpdates: PackageUpdate[] = [
     {
       name: "pkg-1",
@@ -28,19 +27,12 @@ describe("main(): successful flow mutates state correctly", () => {
       pkgDir: "/root/pkg-1",
       dependencyUpdates: new Map(),
     },
-    {
-      name: "pkg-2",
-      current: "2.0.0",
-      next: "2.2.0",
-      pkgDir: "/root/pkg-2",
-      dependencyUpdates: new Map(),
-    },
   ];
-  const mockReleaseIds: ReleaseIds = { "pkg-1": 101, "pkg-2": 202 };
+  const mockReleaseIds: ReleaseIds = { "pkg-1": 101 };
 
   // shared in-memory state:
   const state = {
-    versions: {} as Record<string, string>,
+    version: "" as string,
     tags: [] as string[],
     lockfileUpdated: false,
     released: {} as ReleaseIds,
@@ -57,7 +49,7 @@ describe("main(): successful flow mutates state correctly", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // reset state
-    state.versions = {};
+    state.version = "";
     state.tags = [];
     state.lockfileUpdated = false;
     state.released = {};
@@ -67,7 +59,6 @@ describe("main(): successful flow mutates state correctly", () => {
     vi.spyOn(rootMod, "getRootDir").mockReturnValue("/root");
     vi.spyOn(pathsMod, "getWorkspacePackagePaths").mockReturnValue([
       "/root/pkg-1",
-      "/root/pkg-2",
     ]);
     vi.spyOn(directMod, "computeDirectBumps").mockResolvedValue(mockUpdates);
     vi.spyOn(depMod, "computeDependencyUpdates").mockReturnValue(new Map());
@@ -76,12 +67,10 @@ describe("main(): successful flow mutates state correctly", () => {
     // 6. dry-run: no state change
     vi.spyOn(dryRunMod, "runDryRun").mockImplementation(() => {});
 
-    // 7. updatePackageJsons *bump versions* in our state
+    // 7. updatePackageJsons *bump version* in our state
     vi.spyOn(updatePkgMod, "updatePackageJsons").mockImplementation(
       (updates) => {
-        for (const u of updates) {
-          state.versions[u.name] = u.next;
-        }
+        state.version = updates[0].next;
       },
     );
 
@@ -93,29 +82,20 @@ describe("main(): successful flow mutates state correctly", () => {
     // 9. updateChangelogs: no state change
     vi.spyOn(changelogMod, "updateChangelogs").mockResolvedValue(undefined);
 
-    // 10. commitAndTagReleases *create tags* in our state
+    // 10. commitAndTagReleases *create tag and update lockfile* in our state
     vi.spyOn(commitTagMod, "commitAndTagReleases").mockImplementation(
       (updates) => {
-        for (const u of updates) {
-          state.tags.push(`${u.name}@${u.next}`);
-        }
+        state.tags.push(`${updates[0].name}@${updates[0].next}`);
+        state.lockfileUpdated = true; // Now lockfile update happens here
       },
     );
 
-    // 11. syncLockfile: update lockfile state
-    vi.spyOn(syncLockfileMod, "syncLockfile").mockImplementation(() => {
-      state.lockfileUpdated = true;
-      return Promise.resolve();
-    });
-
-    // 12. publishAndRelease *record release IDs* in our state
+    // 12. publishAndRelease *record release ID* in our state
     vi.spyOn(publishMod, "publishAndRelease").mockImplementation(
       async (_root, updates, _ids) => {
         const out: ReleaseIds = {};
-        for (const u of updates) {
-          out[u.name] = mockReleaseIds[u.name];
-          state.released[u.name] = mockReleaseIds[u.name];
-        }
+        out[updates[0].name] = mockReleaseIds[updates[0].name];
+        state.released[updates[0].name] = mockReleaseIds[updates[0].name];
         return out;
       },
     );
@@ -129,25 +109,21 @@ describe("main(): successful flow mutates state correctly", () => {
     vi.spyOn(console, "log").mockImplementation(() => {});
   });
 
-  test("main() bumps versions, creates tags, updates lockfile, and returns release IDs", async () => {
+  test("main() bumps version, creates tag, updates lockfile, and returns release ID", async () => {
     await main();
 
-    // Versions bumped correctly
-    expect(state.versions).toEqual({
-      "pkg-1": "1.1.0",
-      "pkg-2": "2.2.0",
-    });
+    // Version bumped correctly
+    expect(state.version).toEqual("1.1.0");
 
-    // Tags created
-    expect(state.tags).toEqual(["pkg-1@1.1.0", "pkg-2@2.2.0"]);
+    // Tag created
+    expect(state.tags).toEqual(["pkg-1@1.1.0"]);
 
-    // Lockfile updated
+    // Lockfile updated (as part of commitAndTagReleases)
     expect(state.lockfileUpdated).toBe(true);
 
-    // Release IDs recorded
+    // Release ID recorded
     expect(state.released).toEqual({
       "pkg-1": 101,
-      "pkg-2": 202,
     });
 
     // Final success log

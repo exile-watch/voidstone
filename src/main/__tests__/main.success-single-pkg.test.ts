@@ -12,7 +12,6 @@ import * as updatePkgMod from "../../steps/7-update-package-jsons/updatePackageJ
 import * as commitDepMod from "../../steps/8-commit-dependency-updates/commitDependencyUpdates.js";
 import * as changelogMod from "../../steps/9-update-changelogs/updateChangelogs.js";
 import * as commitTagMod from "../../steps/10-commit-tag-releases/commitAndTagReleases.js";
-import * as syncLockfileMod from "../../steps/11-sync-lockfile/syncLockfile.js";
 import * as publishMod from "../../steps/12-publish-and-release/publishAndRelease.js";
 import * as pathsMod from "../../utils/getWorkspacePackagePaths/getWorkspacePackagePaths.js";
 import * as rollbackMod from "../../utils/rollback/rollback.js";
@@ -83,18 +82,13 @@ describe("main(): single package flow", () => {
     // 9. updateChangelogs: no state change
     vi.spyOn(changelogMod, "updateChangelogs").mockResolvedValue(undefined);
 
-    // 10. commitAndTagReleases *create tag* in our state
+    // 10. commitAndTagReleases *create tag and update lockfile* in our state
     vi.spyOn(commitTagMod, "commitAndTagReleases").mockImplementation(
       (updates) => {
         state.tag = `${updates[0].name}@${updates[0].next}`;
+        state.lockfileUpdated = true; // Now lockfile update happens here
       },
     );
-
-    // 11. syncLockfile: update lockfile state
-    vi.spyOn(syncLockfileMod, "syncLockfile").mockImplementation(() => {
-      state.lockfileUpdated = true;
-      return Promise.resolve();
-    });
 
     // 12. publishAndRelease *record release ID* in our state
     vi.spyOn(publishMod, "publishAndRelease").mockImplementation(
@@ -124,7 +118,7 @@ describe("main(): single package flow", () => {
     // Tag created
     expect(state.tag).toBe("pkg-1@1.1.0");
 
-    // Lockfile updated
+    // Lockfile updated (as part of commitAndTagReleases)
     expect(state.lockfileUpdated).toBe(true);
 
     // Release ID recorded

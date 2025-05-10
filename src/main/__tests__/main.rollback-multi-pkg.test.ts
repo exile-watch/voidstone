@@ -12,7 +12,6 @@ import * as updatePkgMod from "../../steps/7-update-package-jsons/updatePackageJ
 import * as commitDepMod from "../../steps/8-commit-dependency-updates/commitDependencyUpdates.js";
 import * as changelogMod from "../../steps/9-update-changelogs/updateChangelogs.js";
 import * as commitTagMod from "../../steps/10-commit-tag-releases/commitAndTagReleases.js";
-import * as syncLockfileMod from "../../steps/11-sync-lockfile/syncLockfile.js";
 import * as publishMod from "../../steps/12-publish-and-release/publishAndRelease.js";
 import * as pathsMod from "../../utils/getWorkspacePackagePaths/getWorkspacePackagePaths.js";
 import * as rollbackMod from "../../utils/rollback/rollback.js";
@@ -40,7 +39,6 @@ let state: State;
 // Steps we want to failure-test:
 const TEST_STEPS = [
   { name: "commitAndTagReleases", fn: commitTagMod.commitAndTagReleases },
-  { name: "syncLockfile", fn: syncLockfileMod.syncLockfile },
   { name: "publishAndRelease", fn: publishMod.publishAndRelease },
 ] as const;
 
@@ -98,7 +96,6 @@ describe("main(): multi-package rollback restores both packages' state", () => {
 
     // Mock all steps that should be in the try block
     vi.spyOn(commitTagMod, "commitAndTagReleases").mockImplementation(() => {});
-    vi.spyOn(syncLockfileMod, "syncLockfile").mockResolvedValue(undefined);
     vi.spyOn(publishMod, "publishAndRelease").mockResolvedValue(
       {} as ReleaseIds,
     );
@@ -117,13 +114,6 @@ describe("main(): multi-package rollback restores both packages' state", () => {
       // override that one step to mutate state for both, then throw/reject
       if (name === "publishAndRelease") {
         vi.spyOn(publishMod, "publishAndRelease").mockRejectedValue(err);
-      } else if (name === "syncLockfile") {
-        vi.spyOn(syncLockfileMod, "syncLockfile").mockImplementation(() => {
-          // Mutate state to simulate changes to package-lock.json
-          state.versions["/root/pkg-1/package.json"] = "9.9.9";
-          state.versions["/root/pkg-2/package.json"] = "9.9.9";
-          throw err;
-        });
       } else {
         vi.spyOn(commitTagMod, "commitAndTagReleases").mockImplementation(
           () => {

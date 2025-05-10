@@ -51,11 +51,8 @@ async function main(): Promise<void> {
     // 9. Update changelogs and track releases
     await updateChangelogs(rootDir, updates);
 
-    // 10. Commit and tag releases
+    // 10-11. Sync lockfile, commit and tag releases
     commitAndTagReleases(updates);
-
-    // 11. Sync lockfile
-    syncLockfile(rootDir);
 
     // 12. Publish packages and create GitHub releases
     try {
