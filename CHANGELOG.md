@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.1](https://github.com/exile-watch/voidstone/compare/v1.2.0...v1.2.1) (2025-05-10)
+
+
+### Bug Fixes
+
+* refactor syncLockfile to handle commits based on package-lock.json changes ([cf6f17c](https://github.com/exile-watch/voidstone/commit/cf6f17c9510ec7b2da9fe42eb132967c8273b2a2))
+
 ## [1.2.0](https://github.com/exile-watch/voidstone/compare/v1.1.5...v1.2.0) (2025-05-02)
 
 
