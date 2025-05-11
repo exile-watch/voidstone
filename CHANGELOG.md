@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.2.3](https://github.com/exile-watch/voidstone/compare/v1.2.2...v1.2.3) (2025-05-11)
+
+
+### Bug Fixes
+
+* lint ([f77b8b4](https://github.com/exile-watch/voidstone/commit/f77b8b4ed39cbc29a56033c9b61bdf6c2e8f2a37))
+* update syncLockfile tests for improved accuracy and error handling ([9ab1038](https://github.com/exile-watch/voidstone/commit/9ab1038d99ca12a4ba64e7ca41f010e879bf321a))
+
 ## [1.2.2](https://github.com/exile-watch/voidstone/compare/v1.2.1...v1.2.2) (2025-05-10)
 
 
