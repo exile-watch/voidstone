@@ -6,8 +6,6 @@ function syncLockfile(rootDir: string): void {
     stdio: "inherit",
   });
 
-  execWithLog("git add package-lock.json", { cwd: rootDir });
-
   try {
     console.log("ℹ️ Checking for changes in package-lock.json...");
     const hasChanges = execWithLog(
@@ -16,11 +14,8 @@ function syncLockfile(rootDir: string): void {
     ).includes("has-changes");
 
     if (hasChanges) {
-      console.log("ℹ️ Changes detected in package-lock.json. Committing...");
-      execWithLog(
-        'git commit -m "chore(deps): sync package-lock.json [skip ci]"',
-        { cwd: rootDir },
-      );
+      console.log("ℹ️ Changes detected in package-lock.json. Adding to git...");
+      execWithLog("git add package-lock.json", { cwd: rootDir });
     } else {
       console.log("ℹ️ No changes to package-lock.json, skipping commit.");
     }
