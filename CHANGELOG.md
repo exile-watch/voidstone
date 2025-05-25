@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.2](https://github.com/exile-watch/voidstone/compare/v1.4.1...v1.4.2) (2025-05-25)
+
+
+### Bug Fixes
+
+* validate callback in transform function and improve error handling ([56f007a](https://github.com/exile-watch/voidstone/commit/56f007a3414d191d89e3986bb93b65bbb28b440c))
+
 ## [1.4.1](https://github.com/exile-watch/voidstone/compare/v1.4.0...v1.4.1) (2025-05-25)
 
 
