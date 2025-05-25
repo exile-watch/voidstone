@@ -2,7 +2,7 @@ import { execSync } from "node:child_process";
 import fs from "node:fs";
 import changelog from "conventional-changelog";
 import getStream from "get-stream";
-import {afterAll, beforeEach, describe, expect, it, vi} from "vitest";
+import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PackageUpdate } from "../../types.js";
 import { updateChangelogs } from "./updateChangelogs.js";
 
@@ -28,7 +28,7 @@ describe("updateChangelogs", () => {
 
   afterAll(() => {
     execSync("git config --local core.autocrlf true");
-  })
+  });
 
   it.skip("should create changelog for each package update", async () => {
     const updates: PackageUpdate[] = [
