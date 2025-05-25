@@ -42,10 +42,7 @@ async function rollback(
           { stdio: "ignore", cwd: info.pkgDir },
         );
       } catch (e) {
-        console.warn(
-          `Failed to unpublish ${info.name}@${info.next}. This is likely intended as ${info.name}@${info.next} was not published. If it's not intended, here is what went wrong:`,
-          e,
-        );
+        console.warn(`Failed to unpublish ${info.name}@${info.next}:`, e);
       }
     }
 

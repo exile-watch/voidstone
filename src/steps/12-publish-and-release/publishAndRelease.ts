@@ -59,6 +59,12 @@ async function publishAndRelease(
 
     const writerOpts = {
       transform: (commit: Commit, callback: any) => {
+        // Ensure callback is actually a function
+        if (typeof callback !== "function") {
+          console.error("Invalid callback provided to transform function");
+          return;
+        }
+
         // Ensure we're working with a valid commit object
         if (!commit) {
           return callback(null, commit);
