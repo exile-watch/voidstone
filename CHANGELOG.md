@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.3.0](https://github.com/exile-watch/voidstone/compare/v1.2.3...v1.3.0) (2025-05-25)
+
+
+### Features
+
+* add filtering for [skip ci] commits in changelog generation ([191e170](https://github.com/exile-watch/voidstone/commit/191e1708adf01a4510a47b53b99d45bc46a037e6))
+
+
+### Bug Fixes
+
+* format ([c264a9f](https://github.com/exile-watch/voidstone/commit/c264a9f51d5b8a1116e727dfdef0e45414a94fd2))
+* remove date line from changelog when creating GitHub release ([162bd08](https://github.com/exile-watch/voidstone/commit/162bd08e86c77c175e192121dba95bbe67c36b95))
+
 ## [1.2.3](https://github.com/exile-watch/voidstone/compare/v1.2.2...v1.2.3) (2025-05-11)
 
 
