@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.1](https://github.com/exile-watch/voidstone/compare/v1.4.0...v1.4.1) (2025-05-25)
+
+
+### Bug Fixes
+
+* improve formatting of warning message for unpublish failure ([6f0bccd](https://github.com/exile-watch/voidstone/commit/6f0bccdb8a075822fb263d383606fbbd195663fa))
+
 ## [1.4.0](https://github.com/exile-watch/voidstone/compare/v1.3.0...v1.4.0) (2025-05-25)
 
 
