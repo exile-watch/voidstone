@@ -54,7 +54,12 @@ async function publishAndRelease(
     const changelogStream =
       conventionalChangelog(options, context, gitRawCommitsOpts) ?? {};
 
-    const latest = await getStream(changelogStream);
+    // Get the generated changelog content
+    let latest = await getStream(changelogStream);
+
+    // Remove the duplicate date line if present
+    latest = latest.replace(/^##\s+\(\d{4}-\d{2}-\d{2}\)\s*\n+/m, "");
+
     console.log(`✅ Changelog for ${u.name} has been generated.`);
     // 3) push it into GitHub releases
     console.log(`ℹ️ Creating GitHub release for ${u.name}...`);

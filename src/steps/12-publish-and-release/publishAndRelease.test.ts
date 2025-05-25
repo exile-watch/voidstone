@@ -254,4 +254,34 @@ describe("publishAndRelease", () => {
     // we got back the release id
     expect(result).toEqual({ "@scope/pkg-1": 123 });
   });
+
+  it("should remove date from changelog when creating GitHub release", async () => {
+    const updates: PackageUpdate[] = [
+      {
+        name: "pkg-1",
+        current: "1.0.0",
+        next: "1.1.0",
+        pkgDir: "/root/packages/pkg-1",
+        dependencyUpdates: new Map(),
+      },
+    ];
+    const releaseIds: ReleaseIds = {};
+
+    // Mock a changelog with a date line at the beginning
+    const changelogWithDate = "## (2023-05-25)\n## Features\n\n* new feature";
+    vi.mocked(getStream).mockResolvedValue(changelogWithDate);
+
+    mockOctokit.repos.createRelease.mockResolvedValueOnce({
+      data: { id: 123 },
+    });
+
+    await publishAndRelease("/root", updates, releaseIds);
+
+    // Verify the date was removed from the changelog in the GitHub release
+    expect(mockOctokit.repos.createRelease).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: "## Features\n\n* new feature", // Date line should be removed
+      }),
+    );
+  });
 });
