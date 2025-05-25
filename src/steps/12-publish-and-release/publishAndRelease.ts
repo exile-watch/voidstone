@@ -1,10 +1,17 @@
 import path from "node:path";
 import { Octokit } from "@octokit/rest";
 import conventionalChangelog from "conventional-changelog";
+import type conventionalChangelogCore from "conventional-changelog-core";
+import type { Context } from "conventional-changelog-writer";
+import type { Commit } from "conventional-commits-parser";
 import getStream from "get-stream";
 import { REGISTRY } from "../../constants.js";
 import type { PackageUpdate, ReleaseIds } from "../../types.js";
 import { execWithLog } from "../../utils/execWithLog/execWithLog.js";
+type WriterOptions<
+  TCommit extends Commit = Commit,
+  TContext extends Context = Context,
+> = conventionalChangelogCore.WriterOptions<TCommit, TContext>;
 
 async function publishAndRelease(
   rootDir: string,
@@ -50,9 +57,30 @@ async function publishAndRelease(
       to: `${u.name}@${u.next}`,
     };
 
+    const writerOpts = {
+      transform: (
+        commit: Commit,
+        cb: (error: any, result: Commit | false) => void,
+      ) => {
+        if (commit?.header) {
+          const skipCiRegex = /\[(skip ci|ci skip)\]/i;
+          if (skipCiRegex.test(commit.header)) {
+            return cb(null, false);
+          }
+        }
+        return cb(null, commit);
+      },
+    } as unknown as WriterOptions<Commit, Context>;
+
     console.log(`ℹ️ Generating changelog for ${u.name}...`);
     const changelogStream =
-      conventionalChangelog(options, context, gitRawCommitsOpts) ?? {};
+      conventionalChangelog(
+        options,
+        context,
+        gitRawCommitsOpts,
+        undefined,
+        writerOpts,
+      ) ?? {};
 
     // Get the generated changelog content
     let latest = await getStream(changelogStream);

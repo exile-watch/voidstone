@@ -241,7 +241,15 @@ describe("publishAndRelease", () => {
     // getStream was passed the stream from conventionalChangelog:
     expect(getStream).toHaveBeenCalledWith(expect.anything());
     // if you spy on conventionalChangelog itself, you can:
-    expect(conventionalChangelog).toHaveBeenCalledWith(opts, ctx, raw);
+    expect(conventionalChangelog).toHaveBeenCalledWith(
+      opts,
+      ctx,
+      raw,
+      undefined,
+      expect.objectContaining({
+        transform: expect.any(Function),
+      }),
+    );
 
     // GitHub release called with that changelog as body
     expect(mockCreate).toHaveBeenCalledWith(
@@ -283,5 +291,146 @@ describe("publishAndRelease", () => {
         body: "## Features\n\n* new feature", // Date line should be removed
       }),
     );
+  });
+
+  it("should filter out commits with [skip ci] in actual changelog generation flow", async () => {
+    // Setup mock commits that will be processed by the transform function
+    const mockCommits = [
+      { header: "feat: normal feature" },
+      { header: "feat: feature with [skip ci]" },
+      { header: "fix: normal bugfix" },
+    ];
+
+    // Capture the transform function when conventionalChangelog is called
+    let capturedTransform: any;
+    vi.mocked(conventionalChangelog).mockImplementation(
+      (options, context, gitRawCommitsOpts, parserOpts, writerOpts: any) => {
+        // Capture the transform function
+        capturedTransform = writerOpts?.transform;
+        return {} as any;
+      },
+    );
+
+    // Start the process that will call conventionalChangelog
+    const updates = [
+      {
+        name: "test-pkg",
+        current: "1.0.0",
+        next: "1.1.0",
+        pkgDir: "/root/packages/test",
+        dependencyUpdates: new Map(),
+      },
+    ];
+
+    // Mock release creation
+    mockOctokit.repos.createRelease.mockResolvedValueOnce({
+      data: { id: 123 },
+    });
+
+    // Call the function that will trigger conventionalChangelog
+    publishAndRelease("/root", updates, {});
+
+    // Verify transform was captured
+    expect(capturedTransform).toBeDefined();
+
+    // Now manually test the transform function with our mock commits
+    const mockCallback = vi.fn();
+
+    // Test normal commit - should pass through
+    capturedTransform(mockCommits[0], mockCallback);
+    expect(mockCallback).toHaveBeenLastCalledWith(null, mockCommits[0]);
+
+    // Test skip-ci commit - should be filtered out
+    capturedTransform(mockCommits[1], mockCallback);
+    expect(mockCallback).toHaveBeenLastCalledWith(null, false);
+
+    // Test another normal commit - should pass through
+    capturedTransform(mockCommits[2], mockCallback);
+    expect(mockCallback).toHaveBeenLastCalledWith(null, mockCommits[2]);
+  });
+
+  it("should properly filter [skip ci] commits across multiple packages", async () => {
+    const updates = [
+      {
+        name: "pkg-1",
+        current: "1.0.0",
+        next: "1.1.0",
+        pkgDir: "/root/packages/pkg-1",
+        dependencyUpdates: new Map(),
+      },
+      {
+        name: "pkg-2",
+        current: "2.0.0",
+        next: "2.1.0",
+        pkgDir: "/root/packages/pkg-2",
+        dependencyUpdates: new Map(),
+      },
+    ];
+    const releaseIds = {};
+
+    // Captured transform functions for each package
+    const capturedTransforms: any = [];
+
+    // Mock implementation to capture transform functions
+    vi.mocked(conventionalChangelog).mockImplementation(
+      (options, context, gitRawCommitsOpts, parserOpts, writerOpts: any) => {
+        // Store transform function for later testing
+        if (writerOpts?.transform) {
+          capturedTransforms.push(writerOpts.transform);
+        }
+
+        // Mock changelog content for each package
+        if (options?.lernaPackage === "pkg-1") {
+          vi.mocked(getStream).mockResolvedValueOnce(
+            "### Features\n\n* regular feature for pkg-1",
+          );
+        } else {
+          vi.mocked(getStream).mockResolvedValueOnce(
+            "### Features\n\n* regular feature for pkg-2",
+          );
+        }
+
+        return {} as any;
+      },
+    );
+
+    mockOctokit.repos.createRelease
+      .mockResolvedValueOnce({ data: { id: 123 } })
+      .mockResolvedValueOnce({ data: { id: 456 } });
+
+    await publishAndRelease("/root", updates, releaseIds);
+
+    // Verify transform functions were captured
+    expect(capturedTransforms.length).toBe(2);
+
+    // Test commits for each package
+    const pkg1Commits = [
+      { header: "feat: normal feature for pkg-1" },
+      { header: "fix: bug fix [skip ci] for pkg-1" },
+    ];
+
+    const pkg2Commits = [
+      { header: "feat: feature for pkg-2" },
+      { header: "chore: maintenance task [CI SKIP] for pkg-2" },
+    ];
+
+    const mockCallback = vi.fn();
+
+    // Test pkg-1 transform function
+    capturedTransforms[0](pkg1Commits[0], mockCallback); // Regular commit
+    expect(mockCallback).toHaveBeenLastCalledWith(null, pkg1Commits[0]);
+
+    capturedTransforms[0](pkg1Commits[1], mockCallback); // Skip CI commit
+    expect(mockCallback).toHaveBeenLastCalledWith(null, false);
+
+    // Test pkg-2 transform function
+    capturedTransforms[1](pkg2Commits[0], mockCallback); // Regular commit
+    expect(mockCallback).toHaveBeenLastCalledWith(null, pkg2Commits[0]);
+
+    capturedTransforms[1](pkg2Commits[1], mockCallback); // Skip CI commit
+    expect(mockCallback).toHaveBeenLastCalledWith(null, false);
+
+    // Verify releases were created
+    expect(mockOctokit.repos.createRelease).toHaveBeenCalledTimes(2);
   });
 });
