@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.0](https://github.com/exile-watch/voidstone/compare/v1.3.0...v1.4.0) (2025-05-25)
+
+
+### Features
+
+* enhance changelog transformation to handle edge cases ([3458efa](https://github.com/exile-watch/voidstone/commit/3458efa36a414673ad16a8c941db378a57699dc6))
+
 ## [1.3.0](https://github.com/exile-watch/voidstone/compare/v1.2.3...v1.3.0) (2025-05-25)
 
 
