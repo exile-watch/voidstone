@@ -58,19 +58,24 @@ async function publishAndRelease(
     };
 
     const writerOpts = {
-      transform: (
-        commit: Commit,
-        cb: (error: any, result: Commit | false) => void,
-      ) => {
-        if (commit?.header) {
+      transform: (commit: Commit, callback: any) => {
+        // Ensure we're working with a valid commit object
+        if (!commit) {
+          return callback(null, commit);
+        }
+
+        // Check for skip ci in the header
+        if (commit.header) {
           const skipCiRegex = /\[(skip ci|ci skip)\]/i;
           if (skipCiRegex.test(commit.header)) {
-            return cb(null, false);
+            return callback(null, false);
           }
         }
-        return cb(null, commit);
+
+        // Pass through the commit unchanged
+        return callback(null, commit);
       },
-    } as unknown as WriterOptions<Commit, Context>;
+    } as WriterOptions<Commit, Context>;
 
     console.log(`ℹ️ Generating changelog for ${u.name}...`);
     const changelogStream =

@@ -1,14 +1,13 @@
+import Stream from "node:stream";
 import { Octokit } from "@octokit/rest";
 import conventionalChangelog from "conventional-changelog";
+import changelog from "conventional-changelog";
 import getStream from "get-stream";
 import { type Mock, beforeEach, describe, expect, it, vi } from "vitest";
 import { REGISTRY } from "../../constants.js";
 import type { PackageUpdate, ReleaseIds } from "../../types.js";
 import { execWithLog } from "../../utils/execWithLog/execWithLog.js";
-import {
-  generateChangelogArgs,
-  getChangelogOptions,
-} from "../../utils/testUtils/index.js";
+import { generateChangelogArgs } from "../../utils/testUtils/index.js";
 import { publishAndRelease } from "./publishAndRelease.js";
 
 vi.mock("../../utils/execWithLog/execWithLog.js");
@@ -432,5 +431,93 @@ describe("publishAndRelease", () => {
 
     // Verify releases were created
     expect(mockOctokit.repos.createRelease).toHaveBeenCalledTimes(2);
+  });
+
+  it("should properly handle transform function in real-world integration scenario", async () => {
+    let capturedTransform: any = null;
+
+    // Capture and manually verify transform integrity
+    vi.mocked(changelog).mockImplementationOnce(
+      (options, context, gitRawCommitsOpts, parserOpts, writerOpts: any) => {
+        // Store the transform function
+        capturedTransform = writerOpts?.transform;
+
+        // Simulate what happens in conventional-changelog ecosystem
+        // Create a fake stream that will use the transform
+        const fakeStream = new Stream.Transform({
+          objectMode: true,
+          transform(commit, encoding, callback) {
+            if (writerOpts?.transform) {
+              // Call transform with appropriate arguments
+              writerOpts.transform(commit, (err: any, result: any) => {
+                if (err) return callback(err);
+                if (result !== false) {
+                  this.push(result);
+                }
+                callback();
+              });
+            } else {
+              this.push(commit);
+              callback();
+            }
+          },
+        });
+
+        // Mock stream output
+        setTimeout(() => {
+          fakeStream.end();
+        }, 0);
+
+        return fakeStream;
+      },
+    );
+
+    // Start the release process
+    const updates = [
+      {
+        name: "test-pkg",
+        current: "1.0.0",
+        next: "1.1.0",
+        pkgDir: "/root/packages/test",
+        dependencyUpdates: new Map(),
+      },
+    ];
+
+    mockOctokit.repos.createRelease.mockResolvedValueOnce({
+      data: { id: 123 },
+    });
+
+    try {
+      await publishAndRelease("/root", updates, {});
+
+      // Test the captured transform function for robustness
+      expect(capturedTransform).toBeDefined();
+
+      const mockCallback = vi.fn();
+
+      // Test with various corner cases
+      capturedTransform({ header: "feat: normal" }, mockCallback);
+      expect(mockCallback).toHaveBeenLastCalledWith(null, {
+        header: "feat: normal",
+      });
+
+      capturedTransform({ header: "fix: with [skip ci]" }, mockCallback);
+      expect(mockCallback).toHaveBeenLastCalledWith(null, false);
+
+      // Test with undefined or null header
+      capturedTransform({ header: undefined }, mockCallback);
+      expect(mockCallback).toHaveBeenLastCalledWith(null, {
+        header: undefined,
+      });
+
+      capturedTransform({ header: null }, mockCallback);
+      expect(mockCallback).toHaveBeenLastCalledWith(null, { header: null });
+
+      // Test with non-object commit
+      capturedTransform(null, mockCallback);
+      expect(mockCallback).toHaveBeenLastCalledWith(null, null);
+    } catch (error) {
+      expect.fail(`Should not throw an error: ${error}`);
+    }
   });
 });
