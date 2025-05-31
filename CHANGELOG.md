@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.3](https://github.com/exile-watch/voidstone/compare/v1.4.2...v1.4.3) (2025-05-31)
+
+
+### Bug Fixes
+
+* streamline changelog generation and improve formatting ([e09b571](https://github.com/exile-watch/voidstone/commit/e09b5711eb9e752d904e280d7fe66a2a435e9004))
+
 ## [1.4.2](https://github.com/exile-watch/voidstone/compare/v1.4.1...v1.4.2) (2025-05-25)
 
 
