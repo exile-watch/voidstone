@@ -51,12 +51,6 @@ async function publishAndRelease(
 
     const context = {};
 
-    const gitRawCommitsOpts = {
-      path: relPath,
-      from: `${u.name}@${u.current}`,
-      to: `${u.name}@${u.next}`,
-    };
-
     const writerOpts = {
       transform: (commit: Commit, callback: any) => {
         // Ensure callback is actually a function
@@ -88,16 +82,13 @@ async function publishAndRelease(
       conventionalChangelog(
         options,
         context,
-        gitRawCommitsOpts,
+        undefined,
         undefined,
         writerOpts,
       ) ?? {};
 
     // Get the generated changelog content
-    let latest = await getStream(changelogStream);
-
-    // Remove the duplicate date line if present
-    latest = latest.replace(/^##\s+\(\d{4}-\d{2}-\d{2}\)\s*\n+/m, "");
+    const latest = await getStream(changelogStream);
 
     console.log(`✅ Changelog for ${u.name} has been generated.`);
     // 3) push it into GitHub releases
@@ -107,7 +98,7 @@ async function publishAndRelease(
       repo,
       tag_name: `${u.name}@${u.next}`,
       name: `${u.name}@${u.next}`,
-      body: latest,
+      body: latest.trim(),
     });
     console.log(`✅ Release for ${u.name} has been created.`);
 

@@ -78,9 +78,7 @@ describe("updateChangelogs", () => {
       },
       {},
       {
-        from: `${updates[0].name}@${updates[0].current}`,
         path: `packages/${updates[0].name}`,
-        to: `${updates[0].name}@${updates[0].next}`,
       },
     );
   });
