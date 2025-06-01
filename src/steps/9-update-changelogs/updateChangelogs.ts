@@ -1,9 +1,17 @@
 import fs from "node:fs";
 import path from "node:path";
 import conventionalChangelog from "conventional-changelog";
+import type conventionalChangelogCore from "conventional-changelog-core";
+import type { Context } from "conventional-changelog-writer";
+import type { Commit } from "conventional-commits-parser";
 import getStream from "get-stream";
 import type { PackageUpdate } from "../../types.js";
 import { execWithLog } from "../../utils/execWithLog/execWithLog.js";
+import { filterSkipCiCommits } from "../../utils/filterSkipCiCommits/filterSkipCiCommits.js";
+type WriterOptions<
+  TCommit extends Commit = Commit,
+  TContext extends Context = Context,
+> = conventionalChangelogCore.WriterOptions<TCommit, TContext>;
 
 export async function updateChangelogs(
   rootDir: string,
@@ -31,13 +39,23 @@ export async function updateChangelogs(
 
       const context = {};
 
+      const writerOpts = {
+        transform: filterSkipCiCommits,
+      } as WriterOptions<Commit, Context>;
+
       // Change into the repo root so that git commands see every tag
       process.chdir(rootDir);
 
       // Generate the ENTIRE Changelog for this package
-      const changelogStream = conventionalChangelog(options, context, {
-        path: relativePath,
-      });
+      const changelogStream = conventionalChangelog(
+        options,
+        context,
+        {
+          path: relativePath,
+        },
+        undefined,
+        writerOpts,
+      );
 
       const fullChangelog = await getStream(changelogStream);
 

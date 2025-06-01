@@ -8,6 +8,7 @@ import getStream from "get-stream";
 import { REGISTRY } from "../../constants.js";
 import type { PackageUpdate, ReleaseIds } from "../../types.js";
 import { execWithLog } from "../../utils/execWithLog/execWithLog.js";
+import { filterSkipCiCommits } from "../../utils/filterSkipCiCommits/filterSkipCiCommits.js";
 type WriterOptions<
   TCommit extends Commit = Commit,
   TContext extends Context = Context,
@@ -52,29 +53,7 @@ async function publishAndRelease(
     const context = {};
 
     const writerOpts = {
-      transform: (commit: Commit, callback: any) => {
-        // Ensure callback is actually a function
-        if (typeof callback !== "function") {
-          console.error("Invalid callback provided to transform function");
-          return;
-        }
-
-        // Ensure we're working with a valid commit object
-        if (!commit) {
-          return callback(null, commit);
-        }
-
-        // Check for skip ci in the header
-        if (commit.header) {
-          const skipCiRegex = /\[(skip ci|ci skip)\]/i;
-          if (skipCiRegex.test(commit.header)) {
-            return callback(null, false);
-          }
-        }
-
-        // Pass through the commit unchanged
-        return callback(null, commit);
-      },
+      transform: filterSkipCiCommits,
     } as WriterOptions<Commit, Context>;
 
     console.log(`ℹ️ Generating changelog for ${u.name}...`);
@@ -82,7 +61,7 @@ async function publishAndRelease(
       conventionalChangelog(
         options,
         context,
-        undefined,
+        { path: relPath },
         undefined,
         writerOpts,
       ) ?? {};
